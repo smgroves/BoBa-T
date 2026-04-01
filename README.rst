@@ -50,4 +50,4 @@ For more details on how to use these functions, please see the tutorials for net
 The tutorials should run in less than 20 minutes on a standard laptop.
 
 
-See the repository: `here <https://github.com/smgroves/Bhattacharya2026>`_ for examples and documentation of how to use this package.
+See this `repository <https://github.com/smgroves/Bhattacharya2026>`_  for examples and documentation of how to use this package.
