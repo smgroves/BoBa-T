@@ -47,7 +47,8 @@ Demo:
 ~~~~~~~~~~~~~~~~~~~~~~~~
 
 For more details on how to use these functions, please see the tutorials for network construction (`network_example.ipynb`) and inference (`inference_example.ipynb`). These tutorials contain instructions to run the data, expected output, and explanations of the code.
-The tutorials should run in less than 20 minutes on a standard laptop.
+The network generation tutorial should run in less than 10 minutes on a standard laptop.
+The inference tutorial should run in less than 30 minutes on a standard laptop.
 
 
 See this `repository <https://github.com/smgroves/Bhattacharya2026>`_  for examples and documentation of how to use this package.
