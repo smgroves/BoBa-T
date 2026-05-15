@@ -76,7 +76,7 @@ def detect_irrelevant_regulator(regulators, rule, threshold=0.1):
         dict(zip(regulators, max_difs)),
         dict(zip(regulators, tot_difs)),
         dict(zip(regulators, signed_tot_difs)),
-    )  ### added signed_tot_dif to output
+    )  # added signed_tot_dif to output
     # return irrelevant
 
 
@@ -141,7 +141,7 @@ def get_rules_scvelo(
                         # for each row in data column...
                         # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
                         df = data.loc[idx]
-                        val = np.float(data_t1.loc[idx, gene])
+                        val = float(data_t1.loc[idx, gene])
                         for col, on in enumerate(binary):
                             # for each regulator in each column in decision tree...
                             regulator = regulators[col]
@@ -150,9 +150,9 @@ def get_rules_scvelo(
                             # df(regulator) = expression value of regulator in data for that row
                             # multiply for each regulator (parent TF) in leaf
                             if on:
-                                heat[i, leaf] *= np.float(df[regulator])
+                                heat[i, leaf] *= float(df[regulator])
                             else:
-                                heat[i, leaf] *= 1 - np.float(df[regulator])
+                                heat[i, leaf] *= 1 - float(df[regulator])
                         # the probability for that leaf becomes the value of expression (val) times that square in the heatmap
                         # this loops over the rows in the heatmap and keeps multiplying in the weight * expression value
                         prob_01[0, leaf] += (
@@ -215,7 +215,7 @@ def get_rules_scvelo(
             rules[gene] = rules[gene][importance_order]
             # rules[gene] = smooth_rule(rules[gene], regulators, tot_regulator_relevance, np.max(heat,axis=0))
 
-            #strengths and signed_strengths should have child nodes as rows with columns as parent nodes
+            # strengths and signed_strengths should have child nodes as rows with columns as parent nodes
             strengths.loc[gene] = tot_regulator_relevance
             signed_strengths.loc[gene] = signed_tot_regulator_relevance
 
@@ -242,18 +242,19 @@ def get_rules_scvelo(
 # plot = boolean - make the resulting plot
 # threshold = float from 0.0 to 1.0, used as threshold for removing irrelevant regulators. 0 removes nothing. 1 removes all.
 def get_rules(
-    data, 
-    vertex_dict, 
-    plot=False, 
-    threshold=0.1, 
-    save_dir="rules", 
-    save_plot = True,
-    show_plot = False,
+    data,
+    vertex_dict,
+    plot=False,
+    threshold=0.1,
+    save_dir="rules",
+    save_plot=True,
+    show_plot=False,
     hlines=None
 ):
     v_names = dict()
     for vertex_name in list(vertex_dict):
-        v_names[vertex_dict[vertex_name]] = vertex_name  # invert the vertex_dict
+        # invert the vertex_dict
+        v_names[vertex_dict[vertex_name]] = vertex_name
     nodes = list(vertex_dict)
     rules = dict()
     regulators_dict = dict()
@@ -301,7 +302,7 @@ def get_rules(
                         # for each row in data column...
                         # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
                         df = data.loc[idx]
-                        val = np.float(data.loc[idx, gene])
+                        val = float(data.loc[idx, gene])
                         for col, on in enumerate(binary):
                             # for each regulator in each column in decision tree...
                             regulator = regulators[col]
@@ -310,9 +311,9 @@ def get_rules(
                             # df(regulator) = expression value of regulator in data for that row
                             # multiply for each regulator (parent TF) in leaf
                             if on:
-                                heat[i, leaf] *= np.float(df[regulator])
+                                heat[i, leaf] *= float(df[regulator])
                             else:
-                                heat[i, leaf] *= 1 - np.float(df[regulator])
+                                heat[i, leaf] *= 1 - float(df[regulator])
                         # the probability for that leaf becomes the value of expression (val) times that square in the heatmap
                         # this loops over the rows in the heatmap and keeps multiplying in the weight * expression value
                         prob_01[0, leaf] += (
@@ -392,7 +393,6 @@ def get_rules(
                     hlines=hlines,
                 )
 
-
     return rules, regulators_dict, strengths, signed_strengths
 
 
@@ -426,7 +426,7 @@ def parent_heatmap(data, regulators_dict, gene):
             # for each row in data column...
             # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
             df = data.loc[idx]
-            val = np.float(data.loc[idx, gene])
+            val = float(data.loc[idx, gene])
             for col, on in enumerate(binary):
                 # for each regulator in each column in decision tree...
                 regulator = regulators[col]
@@ -435,9 +435,9 @@ def parent_heatmap(data, regulators_dict, gene):
                 # df(regulator) = expression value of regulator in data for that row
                 # multiply for each regulator (parent TF) in leaf
                 if on:
-                    heat[i, leaf] *= np.float(df[regulator])
+                    heat[i, leaf] *= float(df[regulator])
                 else:
-                    heat[i, leaf] *= 1 - np.float(df[regulator])
+                    heat[i, leaf] *= 1 - float(df[regulator])
 
     regulator_order = [i for i in regulators]
     return heat, regulator_order
@@ -459,7 +459,7 @@ def roc(
         tprs.append(p)
         fprs.append(r)
     # area = auc(fprs, tprs)
-    #### AUC function wasn't working... replace with np.trapz
+    # AUC function wasn't working... replace with np.trapz
     area = np.abs(np.trapz(x=fprs, y=tprs))
     if plot == True:
         plot_roc(
@@ -474,7 +474,9 @@ def roc(
 
     return tprs, fprs, area
 
-#TODO: replace this function with sklearn.metrics.ROC_curve
+# TODO: replace this function with sklearn.metrics.ROC_curve
+
+
 def calc_roc(validation, threshold):
     # P: True positive over predicted condition positive (of the ones predicted positive, how many are actually
     # positive?)
@@ -484,8 +486,10 @@ def calc_roc(validation, threshold):
     predicted_neg = validation.loc[validation["predicted"] <= threshold]
     actual_neg = validation.loc[validation["actual"] <= 0.5]
     true_positive = len(set(actual.index).intersection(set(predicted.index)))
-    false_positive = len(set(actual_neg.index).intersection(set(predicted.index)))
-    true_negative = len(set(actual_neg.index).intersection(set(predicted_neg.index)))
+    false_positive = len(
+        set(actual_neg.index).intersection(set(predicted.index)))
+    true_negative = len(
+        set(actual_neg.index).intersection(set(predicted_neg.index)))
     if len(actual.index.values) == 0 or len(actual_neg.index.values) == 0:
         return -1, -1
     else:
@@ -533,7 +537,7 @@ def fit_validation(
     nodes,
     regulators_dict,
     rules,
-    data_test_t1 = None,
+    data_test_t1=None,
     save=False,
     save_dir=None,
     fname="",
@@ -564,11 +568,11 @@ def fit_validation(
     for node in nodes:
         # print(node)
         validation = plot_accuracy(
-            data = data_test,
-            node = node,
-            regulators_dict = regulators_dict,
-            rules = rules,
-            data_t1= data_test_t1,
+            data=data_test,
+            node=node,
+            regulators_dict=regulators_dict,
+            rules=rules,
+            data_t1=data_test_t1,
             plot_clusters=plot_clusters,
             clusters=clusters,
             save=save,
@@ -633,60 +637,73 @@ def roc_from_file(
     return tpr_all, fpr_all, area_all
 
 
-def get_sklearn_metrics(VAL_DIR, plot_cm = True, show = False, save = True, save_stats = True, verbose = False):
+def get_sklearn_metrics(VAL_DIR, plot_cm=True, show=False, save=True, save_stats=True, verbose=False):
     files = glob.glob(f"{VAL_DIR}/accuracy_plots/*.csv")
-    summary_stats = pd.DataFrame(columns = ['gene','accuracy','balanced_accuracy_score','f1','roc_auc_score', "precision",
-                                                "recall", "explained_variance", 'max_error', 'r2','log-loss'])
+    summary_stats = pd.DataFrame(columns=['gene', 'accuracy', 'balanced_accuracy_score', 'f1', 'roc_auc_score', "precision",
+                                          "recall", "explained_variance", 'max_error', 'r2', 'log-loss'])
     if len(files) == 0:
         print("You must first run tl.fit_validation() to generate the appropriate files.")
         return summary_stats
     else:
 
         for f in files:
-                val_df = pd.read_csv(f, header = 0, index_col=0)
-                val_df['actual_binary'] = [{True:1, False:0}[x] for x in val_df['actual']> 0.5]
-                val_df['predicted_binary'] = [{True:1, False:0}[x] for x in val_df['predicted']> 0.5]
-                gene = f.split("/")[-1].split("_")[0]
-                if verbose: print(gene)
+            val_df = pd.read_csv(f, header=0, index_col=0)
+            val_df['actual_binary'] = [{True: 1, False: 0}[x]
+                                       for x in val_df['actual'] > 0.5]
+            val_df['predicted_binary'] = [{True: 1, False: 0}[
+                x] for x in val_df['predicted'] > 0.5]
+            gene = f.split("/")[-1].split("_")[0]
+            if verbose:
+                print(gene)
 
-                #classification stats
-                acc = accuracy_score(val_df['actual_binary'], val_df['predicted_binary'])
-                bal_acc = balanced_accuracy_score(val_df['actual_binary'], val_df['predicted_binary'])
-                f1 = f1_score(val_df['actual_binary'], val_df['predicted_binary'])
-                prec = precision_score(val_df['actual_binary'], val_df['predicted_binary'])
-                rec = recall_score(val_df['actual_binary'], val_df['predicted_binary'])
+            # classification stats
+            acc = accuracy_score(
+                val_df['actual_binary'], val_df['predicted_binary'])
+            bal_acc = balanced_accuracy_score(
+                val_df['actual_binary'], val_df['predicted_binary'])
+            f1 = f1_score(val_df['actual_binary'], val_df['predicted_binary'])
+            prec = precision_score(
+                val_df['actual_binary'], val_df['predicted_binary'])
+            rec = recall_score(val_df['actual_binary'],
+                               val_df['predicted_binary'])
 
-                #regression stats
-                try:
-                    roc_auc = roc_auc_score(val_df['actual_binary'], val_df['predicted'])
-                except ValueError:
-                    print(f"ValueError for {gene}. Only one class present in y_true. ROC AUC score is not defined in that case.")
-                    roc_auc = np.nan
-                expl_var = explained_variance_score(val_df['actual'], val_df['predicted'])
-                max_err = max_error(val_df['actual'], val_df['predicted'])
-                r2 = r2_score(val_df['actual'], val_df['predicted'])
-                try:
-                    ll = log_loss(val_df['actual_binary'], val_df['predicted'])
-                except ValueError:
-                    print(f"ValueError for {gene}: y_true contains only one label (0). Log-loss is not defined in that case.")
-                    ll = np.nan
+            # regression stats
+            try:
+                roc_auc = roc_auc_score(
+                    val_df['actual_binary'], val_df['predicted'])
+            except ValueError:
+                print(
+                    f"ValueError for {gene}. Only one class present in y_true. ROC AUC score is not defined in that case.")
+                roc_auc = np.nan
+            expl_var = explained_variance_score(
+                val_df['actual'], val_df['predicted'])
+            max_err = max_error(val_df['actual'], val_df['predicted'])
+            r2 = r2_score(val_df['actual'], val_df['predicted'])
+            try:
+                ll = log_loss(val_df['actual_binary'], val_df['predicted'])
+            except ValueError:
+                print(
+                    f"ValueError for {gene}: y_true contains only one label (0). Log-loss is not defined in that case.")
+                ll = np.nan
 
-                summary_stats = summary_stats.append(pd.Series([gene, acc, bal_acc,f1,roc_auc,prec,rec,expl_var,max_err,r2,ll],
-                                                            index=summary_stats.columns),ignore_index=True)
-                if plot_cm:
-                    plt.figure()
-                    cm = confusion_matrix(val_df['actual_binary'], val_df['predicted_binary'])
-                    disp = ConfusionMatrixDisplay(confusion_matrix=cm)
-                    disp.plot(cmap = "Blues")
-                    plt.title(gene)
-                    if show:
-                        plt.show()
-                    if save:
-                        plt.savefig(f"{VAL_DIR}/accuracy_plots/{gene}_confusion_matrix.pdf")
-                        plt.close()
+            summary_stats = summary_stats.append(pd.Series([gene, acc, bal_acc, f1, roc_auc, prec, rec, expl_var, max_err, r2, ll],
+                                                           index=summary_stats.columns), ignore_index=True)
+            if plot_cm:
+                plt.figure()
+                cm = confusion_matrix(
+                    val_df['actual_binary'], val_df['predicted_binary'])
+                disp = ConfusionMatrixDisplay(confusion_matrix=cm)
+                disp.plot(cmap="Blues")
+                plt.title(gene)
+                if show:
+                    plt.show()
+                if save:
+                    plt.savefig(
+                        f"{VAL_DIR}/accuracy_plots/{gene}_confusion_matrix.pdf")
+                    plt.close()
 
-        
-        summary_stats = summary_stats.sort_values('gene').reset_index().drop("index",axis = 1)
+        summary_stats = summary_stats.sort_values(
+            'gene').reset_index().drop("index", axis=1)
 
         if save_stats:
             summary_stats.to_csv(f"{VAL_DIR}/summary_stats.csv")
@@ -695,6 +712,8 @@ def get_sklearn_metrics(VAL_DIR, plot_cm = True, show = False, save = True, save
 ### ------------ ATTRACTORS ------------ ###
 
 # tf_basin --> if -1, use average distance between clusters. otherwise use the same size basin for all phenotypes
+
+
 def find_attractors(
     binarized_data,
     rules,
@@ -799,7 +818,8 @@ def find_attractors(
             cnt += 1
             if cnt % 100 == 0:
                 print(
-                    "...", np.round(cnt / (len(binarized_data[k])) * 100, 2), "% done"
+                    "...", np.round(
+                        cnt / (len(binarized_data[k])) * 100, 2), "% done"
                 )
 
         outfile.close()
@@ -822,6 +842,7 @@ def write_attractor_dict(attractor_dict, nodes, outfile):
             outfile.write("\n")
     outfile.close()
 
+
 def filter_attractors(
     attractor_dir,
     nodes,
@@ -829,8 +850,9 @@ def filter_attractors(
 ):
     average_states = {}
     attractor_dict = {}
-    average_states_df = pd.read_csv(f'{attractor_dir}/average_states.txt', sep=',', header=0, index_col=0)
-    for i,r in average_states_df.iterrows():
+    average_states_df = pd.read_csv(
+        f'{attractor_dir}/average_states.txt', sep=',', header=0, index_col=0)
+    for i, r in average_states_df.iterrows():
         s = ""
         cnt = 0
         for letter in list(r):
@@ -839,16 +861,19 @@ def filter_attractors(
             cnt += 1
         average_states[i] = ut.state2idx(s)
     for phen in clusters['class'].unique():
-        d = pd.read_csv(f'{attractor_dir}/attractors_{phen}.txt', sep = ',', header = 0)
-        attractor_dict[f'{phen}'] =  list(np.unique(d['attractor']))
+        d = pd.read_csv(
+            f'{attractor_dir}/attractors_{phen}.txt', sep=',', header=0)
+        attractor_dict[f'{phen}'] = list(np.unique(d['attractor']))
         #     ##### Below code compares each attractor to average state for each subtype instead of closest single binarized data point
     a = attractor_dict.copy()
     # attractor_dict = a.copy()
     for p in attractor_dict.keys():
         print(p)
         for q in attractor_dict.keys():
-            if p == q: continue
-            n_same = list(set(attractor_dict[p]).intersection(set(attractor_dict[q])))
+            if p == q:
+                continue
+            n_same = list(set(attractor_dict[p]).intersection(
+                set(attractor_dict[q])))
             if len(n_same) != 0:
                 for x in n_same:
                     p_dist = ut.hamming_idx(x, average_states[p], len(nodes))
@@ -905,27 +930,31 @@ def find_avg_states(binarized_data, nodes, save_dir):
 
 ### ------------ PERTURBATIONS SUMMARY ------------ ###
 
-def perturbations_summary(attractor_dict,perturbations_dir, show = False, save = True, plot_by_attractor = False, save_dir = "clustered_perturb_plots", save_full = True,
-    significance = 'both', fname = "", ncols = 5, mean_threshold = -0.3):
+def perturbations_summary(attractor_dict, perturbations_dir, show=False, save=True, plot_by_attractor=False, save_dir="clustered_perturb_plots", save_full=True,
+                          significance='both', fname="", ncols=5, mean_threshold=-0.3):
     if plot_by_attractor:
-        plot_destabilization_scores(attractor_dict, perturbations_dir, show = False, save = True, clustered = False)
+        plot_destabilization_scores(
+            attractor_dict, perturbations_dir, show=False, save=True, clustered=False)
 
     print("Plotting perturbation summary plots...")
-    plot_destabilization_scores(attractor_dict, perturbations_dir, show = show, save = save, save_dir=save_dir)
+    plot_destabilization_scores(
+        attractor_dict, perturbations_dir, show=show, save=save, save_dir=save_dir)
 
     print("Testing significance of TF perturbations...")
-    perturb_dict, full = ut.get_perturbation_dict(attractor_dict, perturbations_dir, significance = significance, save_full=False, mean_threshold=mean_threshold)
+    perturb_dict, full = ut.get_perturbation_dict(
+        attractor_dict, perturbations_dir, significance=significance, save_full=False, mean_threshold=mean_threshold)
     perturb_gene_dict = ut.reverse_perturb_dictionary(perturb_dict)
     if save_full:
-        ut.write_dict_of_dicts(perturb_gene_dict, 
-            file = f"{perturbations_dir}/{save_dir}/perturbation_TF_dictionary{fname}.txt")
+        ut.write_dict_of_dicts(perturb_gene_dict,
+                               file=f"{perturbations_dir}/{save_dir}/perturbation_TF_dictionary{fname}.txt")
 
-
-    full_sig = ut.get_ci_sig(full, group_cols=['cluster','gene','perturb'])
+    full_sig = ut.get_ci_sig(full, group_cols=['cluster', 'gene', 'perturb'])
 
     if save_full:
-        full_sig.to_csv(f"{perturbations_dir}/{save_dir}/perturbation_stats.csv")
-    
-    plot_perturb_gene_dictionary(perturb_gene_dict, full,perturbations_dir,show = False, save = True, ncols = ncols, fname = fname)
+        full_sig.to_csv(
+            f"{perturbations_dir}/{save_dir}/perturbation_stats.csv")
+
+    plot_perturb_gene_dictionary(
+        perturb_gene_dict, full, perturbations_dir, show=False, save=True, ncols=ncols, fname=fname)
 
     return perturb_gene_dict, full, full_sig

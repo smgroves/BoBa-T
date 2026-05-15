@@ -45,7 +45,8 @@ def plot_sklearn_summ_stats(summary_stats, VAL_DIR, fname=""):
         val = row.value
         if (val > outlier_top_lim[variable]) or (val < outlier_bottom_lim[variable]):
             # print(val, row.gene)
-            plt.annotate(row.gene, xy=(col_dict[variable] + 0.1, val), fontsize=8)
+            plt.annotate(row.gene, xy=(
+                col_dict[variable] + 0.1, val), fontsize=8)
     plt.xticks(rotation=45, ha="right")
     plt.xlabel("Model Metric")
     plt.ylabel("Score")
@@ -133,7 +134,8 @@ def plot_validation_avgs(
 ):
     plt.figure()
     ax = plt.subplot()
-    plt.plot(fpr_all.sum(axis=1) / num_nodes, tpr_all.sum(axis=1) / num_nodes, "-o")
+    plt.plot(fpr_all.sum(axis=1) / num_nodes,
+             tpr_all.sum(axis=1) / num_nodes, "-o")
     ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
     plt.xlim(0, 1)
     plt.ylim(0, 1)
@@ -248,7 +250,7 @@ def parent_heatmap(data, regulators_dict, gene):
             # for each row in data column...
             # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
             df = data.loc[idx]
-            val = np.float(data.loc[idx, gene])
+            val = float(data.loc[idx, gene])
             for col, on in enumerate(binary):
 
                 # for each regulator in each column in decision tree...
@@ -258,9 +260,9 @@ def parent_heatmap(data, regulators_dict, gene):
                 # df(regulator) = expression value of regulator in data for that row
                 # multiply for each regulator (parent TF) in leaf
                 if on:
-                    heat[i, leaf] *= np.float(df[regulator])
+                    heat[i, leaf] *= float(df[regulator])
                 else:
-                    heat[i, leaf] *= 1 - np.float(df[regulator])
+                    heat[i, leaf] *= 1 - float(df[regulator])
 
     regulator_order = [i for i in regulators]
     return heat, regulator_order
@@ -294,7 +296,8 @@ def plot_accuracy(
         predicted = np.dot(heat, rule)
         p = pd.DataFrame(predicted, columns=["predicted"], index=data.index)
         if data_t1 is not None:
-            p["actual"] = data_t1[node]  # replicates old plot_accuracy_scvelo function
+            # replicates old plot_accuracy_scvelo function
+            p["actual"] = data_t1[node]
         else:
             p["actual"] = data[node]
 
@@ -303,11 +306,13 @@ def plot_accuracy(
 
         if plot_clusters == True:
             plt.figure()
-            predicted = pd.DataFrame(predicted, index=data.index, columns=["predicted"])
+            predicted = pd.DataFrame(
+                predicted, index=data.index, columns=["predicted"])
             sns.set_palette(customPalette)
 
             for n, c in enumerate(sorted(list(set(clusters["class"])))):
-                clines = data.loc[clusters.loc[clusters["class"] == c].index].index
+                clines = data.loc[clusters.loc[clusters["class"]
+                                               == c].index].index
                 sns.scatterplot(
                     x=data.loc[clines][node],
                     y=predicted.loc[clines]["predicted"],
@@ -320,12 +325,14 @@ def plot_accuracy(
 
             # for i, j in enumerate(phenotypes):
             for i, j in enumerate(sorted(list(set(clusters["class"])))):
-                legend_elements.append(Patch(facecolor=customPalette[i], label=j))
+                legend_elements.append(
+                    Patch(facecolor=customPalette[i], label=j))
 
             plt.legend(handles=legend_elements, loc="best")
             plt.title(str(node))
             if save == True:
-                plt.savefig(f"{save_dir}/accuracy_plots/{node}_validation_plot.pdf")
+                plt.savefig(
+                    f"{save_dir}/accuracy_plots/{node}_validation_plot.pdf")
             if show_plot == True:
                 plt.show()
             plt.close()
@@ -341,10 +348,12 @@ def plot_accuracy(
                 plt.title(str(node))
             else:
                 plt.title(
-                    str(node) + "\n" + str(round(ut.r2(data[node], predicted), 2))
+                    str(node) + "\n" +
+                    str(round(ut.r2(data[node], predicted), 2))
                 )
             if save == True:
-                plt.savefig(f"{save_dir}/accuracy_plots/{node}_validation_plot.pdf")
+                plt.savefig(
+                    f"{save_dir}/accuracy_plots/{node}_validation_plot.pdf")
             if show_plot == True:
                 print(node)
                 plt.show()
@@ -357,7 +366,7 @@ def plot_accuracy(
 ### ------------ ATTRACTOR PLOTS ------------ ###
 
 
-## Work in progress
+# Work in progress
 def plot_attractors(fname, save_dir="", sep=","):
     att = pd.read_table(f"{save_dir}/{fname}", sep=sep, header=0, index_col=0)
     att = att.transpose()
@@ -448,7 +457,8 @@ def make_jaccard_heatmap(
     # plot heatmap
     plt.figure(figsize=figsize)
     lut = dict(
-        zip(sorted(df.index.unique()), sns.color_palette("hls", len(df.index.unique())))
+        zip(sorted(df.index.unique()), sns.color_palette(
+            "hls", len(df.index.unique())))
     )
     lut.update(set_color)
     row_colors = df.index.map(lut)
@@ -531,7 +541,8 @@ def plot_rule(
         top_nodes = []
         for leaves in [i * 2 for i in range(2 ** (n - layer - 1))]:
 
-            top_nodes.append((bottom_nodes[leaves] + bottom_nodes[leaves + 1]) / 2.0)
+            top_nodes.append(
+                (bottom_nodes[leaves] + bottom_nodes[leaves + 1]) / 2.0)
 
         for i in range(len(top_nodes)):
             ax.plot(
@@ -551,7 +562,8 @@ def plot_rule(
         ax.annotate(
             " %s" % regulators[n - 1 - layer],
             (
-                (1 - progress) * top_nodes[i] + progress * bottom_nodes[2 * i + 1],
+                (1 - progress) * top_nodes[i] +
+                progress * bottom_nodes[2 * i + 1],
                 layer + 1 - progress,
             ),
             fontsize=8,
@@ -690,8 +702,10 @@ def plot_histograms(n_steps_0, n_steps_1, expt_label, bins=20, fname=None, ax=No
 
     avg_0 = np.mean(n_steps_0)
     avg_1 = np.mean(n_steps_1)
-    plt.axvline(avg_0, color="#4499CC", linestyle="dashed", label="Control Mean")
-    plt.axvline(avg_1, color="#CC9944", linestyle="dashed", label="Perturbation Mean")
+    plt.axvline(avg_0, color="#4499CC",
+                linestyle="dashed", label="Control Mean")
+    plt.axvline(avg_1, color="#CC9944", linestyle="dashed",
+                label="Perturbation Mean")
 
     ax.set_ylim(ylim)
     ax.set_xlabel("n_steps")
@@ -707,9 +721,9 @@ def plot_histograms(n_steps_0, n_steps_1, expt_label, bins=20, fname=None, ax=No
     return avg_0, avg_1, ((avg_1 - avg_0) / avg_0)
 
 
-## plot barplot of destabilization scores for each TF for each attractor
-## one plot per perturbation type (Activating vs inhibiting)
-## or plot by cluster (boxplots)
+# plot barplot of destabilization scores for each TF for each attractor
+# one plot per perturbation type (Activating vs inhibiting)
+# or plot by cluster (boxplots)
 
 
 def plot_destabilization_scores(
@@ -728,14 +742,16 @@ def plot_destabilization_scores(
                 os.mkdir(f"{perturbations_dir}/{save_dir}")
             except FileExistsError:
                 pass
-            results = pd.DataFrame(columns=["attr", "gene", "perturb", "score"])
+            results = pd.DataFrame(
+                columns=["attr", "gene", "perturb", "score"])
             for attr in attractor_dict[k]:
                 tmp = pd.read_csv(
                     f"{perturbations_dir}/{attr}/results.csv",
                     header=None,
                     index_col=None,
                 )
-                tmp.columns = ["attractor_dir", "cluster", "gene", "perturb", "score"]
+                tmp.columns = ["attractor_dir",
+                               "cluster", "gene", "perturb", "score"]
                 for i, r in tmp.iterrows():
                     results = results.append(
                         pd.Series(
@@ -783,7 +799,8 @@ def plot_destabilization_scores(
                 if show:
                     plt.show()
                 if save:
-                    plt.savefig(f"{perturbations_dir}/{save_dir}/{k}_scores.pdf")
+                    plt.savefig(
+                        f"{perturbations_dir}/{save_dir}/{k}_scores.pdf")
                     plt.close()
             else:
                 results_act = results.loc[results["perturb"] == "activate"]
@@ -798,9 +815,11 @@ def plot_destabilization_scores(
                 plt.axhline(y=0, linestyle="--", color="lightgrey")
 
                 if len(attractor_dict[k]) == 1:
-                    sns.barplot(data=results_act, x="gene", y="score", order=my_order)
+                    sns.barplot(data=results_act, x="gene",
+                                y="score", order=my_order)
                 else:
-                    sns.boxplot(data=results_act, x="gene", y="score", order=my_order)
+                    sns.boxplot(data=results_act, x="gene",
+                                y="score", order=my_order)
                 plt.xticks(rotation=90, fontsize=8)
                 plt.xlabel("Gene")
                 plt.ylabel("Stabilization Score")
@@ -829,9 +848,11 @@ def plot_destabilization_scores(
                 )
                 plt.axhline(y=0, linestyle="--", color="lightgrey")
                 if len(attractor_dict[k]) == 1:
-                    sns.barplot(data=results_kd, x="gene", y="score", order=my_order)
+                    sns.barplot(data=results_kd, x="gene",
+                                y="score", order=my_order)
                 else:
-                    sns.boxplot(data=results_kd, x="gene", y="score", order=my_order)
+                    sns.boxplot(data=results_kd, x="gene",
+                                y="score", order=my_order)
                 plt.xticks(rotation=90, fontsize=8)
                 plt.xlabel("Gene")
                 plt.ylabel("Stabilization Score")
@@ -886,7 +907,8 @@ def plot_destabilization_scores(
                 if show:
                     plt.show()
                 if save:
-                    plt.savefig(f"{perturbations_dir}/{attr}/activation_scores.pdf")
+                    plt.savefig(
+                        f"{perturbations_dir}/{attr}/activation_scores.pdf")
                     plt.close()
 
                 # knockdown plot
@@ -913,7 +935,8 @@ def plot_destabilization_scores(
                 if show:
                     plt.show()
                 if save:
-                    plt.savefig(f"{perturbations_dir}/{attr}/knockdown_scores.pdf")
+                    plt.savefig(
+                        f"{perturbations_dir}/{attr}/knockdown_scores.pdf")
                     plt.close()
 
 
@@ -935,7 +958,8 @@ def plot_perturb_gene_dictionary(
     for x, k in enumerate(sorted(p_dict.keys())):
         print(k)
         # for each gene, for associated clusters that are destabilized, make a df of scores to be used for plotting
-        plot_df = pd.DataFrame(columns=["cluster", "attr", "gene", "perturb", "score"])
+        plot_df = pd.DataFrame(
+            columns=["cluster", "attr", "gene", "perturb", "score"])
         for cluster in p_dict[k]["Regulators"]:
             tmp = full.loc[
                 (full["cluster"] == cluster)
@@ -993,7 +1017,8 @@ def plot_stability(
     err_style="bars",
 ):
 
-    df = pd.DataFrame(columns=["cluster", "attr", "radius", "mean", "median", "std"])
+    df = pd.DataFrame(columns=["cluster", "attr",
+                      "radius", "mean", "median", "std"])
 
     colormap = {i: c for i, c in zip(sorted(attractor_dict.keys()), palette)}
     # folders = glob.glob(f"{walks_dir}/[0-9]*")
@@ -1018,12 +1043,13 @@ def plot_stability(
                             np.median(lengths[0]),
                             np.std(lengths[0]),
                         ],
-                        index=["cluster", "attr", "radius", "mean", "median", "std"],
+                        index=["cluster", "attr", "radius",
+                               "mean", "median", "std"],
                     ),
                     ignore_index=True,
                 )
 
-    ## add walk lengths from random control states to df
+    # add walk lengths from random control states to df
     if os.path.exists(f"{walks_dir}/random/"):
         colormap["random"] = "lightgrey"
         random_starts = os.listdir(f"{walks_dir}/random/")
@@ -1045,7 +1071,8 @@ def plot_stability(
                             np.median(lengths[0]),
                             np.std(lengths[0]),
                         ],
-                        index=["cluster", "attr", "radius", "mean", "median", "std"],
+                        index=["cluster", "attr", "radius",
+                               "mean", "median", "std"],
                     ),
                     ignore_index=True,
                 )
@@ -1175,10 +1202,12 @@ def plot_random_walks(
         attractor_bool_dict[i] = []
     for i, r in attr_filtered.iterrows():
         attractor_dict[i].append(ut.state_bool2idx(list(r)))
-        attractor_bool_dict[i].append(int(ut.idx2binary(ut.state_bool2idx(list(r)), n)))
+        attractor_bool_dict[i].append(
+            int(ut.idx2binary(ut.state_bool2idx(list(r)), n)))
         att_list.append(int(ut.idx2binary(ut.state_bool2idx(list(r)), n)))
 
-    attr_color_map = ut.make_color_map(attractor_dict.keys(), set_colors=set_colors)
+    attr_color_map = ut.make_color_map(
+        attractor_dict.keys(), set_colors=set_colors)
 
     if reduction == "pca":
         pca = PCA(n_components=2)
@@ -1216,7 +1245,8 @@ def plot_random_walks(
             binarized_data_df = ut.binarized_data_dict_to_binary_df(
                 binarized_data, nodes
             )
-            binarized_data_df_new = umap.fit_transform(binarized_data_df.values)
+            binarized_data_df_new = umap.fit_transform(
+                binarized_data_df.values)
             att_new = umap.transform(attr_filtered)
         else:
             att_new = umap.fit_transform(attr_filtered)
@@ -1229,7 +1259,8 @@ def plot_random_walks(
         print(start_idx)
         if plot_vs:
             if perturb is None:
-                raise ValueError("If plot_vs is true, perturb must be specified.")
+                raise ValueError(
+                    "If plot_vs is true, perturb must be specified.")
 
             fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(24, 10), dpi=300)
             ax1.scatter(
@@ -1255,7 +1286,8 @@ def plot_random_walks(
             legend_elements = []
 
             for i in attr_color_map.keys():
-                legend_elements.append(Patch(facecolor=attr_color_map[i], label=i))
+                legend_elements.append(
+                    Patch(facecolor=attr_color_map[i], label=i))
 
             ax1.legend(handles=legend_elements, loc="best")
             ax2.legend(handles=legend_elements, loc="best")
@@ -1271,7 +1303,8 @@ def plot_random_walks(
                         if cnt == 1:
                             pass
                         walk = line.strip()
-                        walk = walk.replace("[", "").replace("]", "").split(",")
+                        walk = walk.replace(
+                            "[", "").replace("]", "").split(",")
                         walk_states = [ut.idx2binary(int(i), n) for i in walk]
                         walk_list = []
                         for i in walk_states:
@@ -1332,7 +1365,8 @@ def plot_random_walks(
                         if cnt == 1:
                             pass
                         walk = line.strip()
-                        walk = walk.replace("[", "").replace("]", "").split(",")
+                        walk = walk.replace(
+                            "[", "").replace("]", "").split(",")
                         walk_states = [ut.idx2binary(int(i), n) for i in walk]
                         walk_list = []
                         for i in walk_states:
@@ -1442,7 +1476,8 @@ def plot_random_walks(
                 )
                 legend_elements = []
                 for i in attr_color_map.keys():
-                    legend_elements.append(Patch(facecolor=attr_color_map[i], label=i))
+                    legend_elements.append(
+                        Patch(facecolor=attr_color_map[i], label=i))
                 plt.legend(handles=legend_elements, loc="best")
 
                 att2_list = att_list.copy()
@@ -1459,8 +1494,10 @@ def plot_random_walks(
                                 if cnt == 1:
                                     pass
                                 walk = line.strip()
-                                walk = walk.replace("[", "").replace("]", "").split(",")
-                                walk_states = [ut.idx2binary(int(i), n) for i in walk]
+                                walk = walk.replace(
+                                    "[", "").replace("]", "").split(",")
+                                walk_states = [ut.idx2binary(
+                                    int(i), n) for i in walk]
                                 walk_list = []
                                 for i in walk_states:
                                     walk_list.append([int(j) for j in i])
@@ -1469,12 +1506,14 @@ def plot_random_walks(
                                     walk_new = pca.transform(walk_list)
                                 elif reduction == "umap":
                                     walk_new = umap.transform(walk_list)
-                                data_walk = pd.DataFrame(walk_new, columns=["0", "1"])
+                                data_walk = pd.DataFrame(
+                                    walk_new, columns=["0", "1"])
                                 data_walks = pd.concat(
                                     [data_walks, data_walk], ignore_index=True
                                 )
                                 data_walk["color"] = [
-                                    (len(data_walk.index) - i) / len(data_walk.index)
+                                    (len(data_walk.index) - i) /
+                                    len(data_walk.index)
                                     for i in data_walk.index
                                 ]
                                 # plt.scatter(x = data_walk['0'], y = data_walk['1'], c = data_walk['color'],
@@ -1502,8 +1541,10 @@ def plot_random_walks(
                                 if cnt == 1:
                                     pass
                                 walk = line.strip()
-                                walk = walk.replace("[", "").replace("]", "").split(",")
-                                walk_states = [ut.idx2binary(int(i), n) for i in walk]
+                                walk = walk.replace(
+                                    "[", "").replace("]", "").split(",")
+                                walk_states = [ut.idx2binary(
+                                    int(i), n) for i in walk]
                                 walk_list = []
                                 for i in walk_states:
                                     walk_list.append([int(j) for j in i])
@@ -1512,12 +1553,14 @@ def plot_random_walks(
                                     walk_new = pca.transform(walk_list)
                                 elif reduction == "umap":
                                     walk_new = umap.transform(walk_list)
-                                data_walk = pd.DataFrame(walk_new, columns=["0", "1"])
+                                data_walk = pd.DataFrame(
+                                    walk_new, columns=["0", "1"])
                                 data_walks = pd.concat(
                                     [data_walks, data_walk], ignore_index=True
                                 )
                                 data_walk["color"] = [
-                                    (len(data_walk.index) - i) / len(data_walk.index)
+                                    (len(data_walk.index) - i) /
+                                    len(data_walk.index)
                                     for i in data_walk.index
                                 ]
                                 # plt.scatter(x = data_walk['0'], y = data_walk['1'], c = data_walk['color'],
@@ -1632,7 +1675,7 @@ def pca_plot_paths(
 
     plt.legend(handles=legend_elements, loc="best")
 
-    ## Are these attractor lists supposed to be hardcoded?
+    # Are these attractor lists supposed to be hardcoded?
     start_type = "null"
     if start_idx in NE_attractors:
         start_type = "NE"
@@ -1668,7 +1711,8 @@ def pca_plot_paths(
                     att2_list.append([int(j) for j in i])
                 walk_new = pca.transform(walk_list)
                 data_walk = pd.DataFrame(walk_new, columns=["0", "1"])
-                data_walks = pd.concat([data_walks, data_walk], ignore_index=True)
+                data_walks = pd.concat(
+                    [data_walks, data_walk], ignore_index=True)
                 data_walk["color"] = [
                     (len(data_walk.index) - i) / len(data_walk.index)
                     for i in data_walk.index
@@ -1716,7 +1760,8 @@ def pca_plot_paths(
                     att2_list.append([int(j) for j in i])
                 walk_new = pca.transform(walk_list)
                 data_walk = pd.DataFrame(walk_new, columns=["0", "1"])
-                data_walks = pd.concat([data_walks, data_walk], ignore_index=True)
+                data_walks = pd.concat(
+                    [data_walks, data_walk], ignore_index=True)
                 data_walk["color"] = [
                     (len(data_walk.index) - i) / len(data_walk.index)
                     for i in data_walk.index
@@ -1845,8 +1890,10 @@ def plot_all_random_walks(
         attractor_bool_dict[i].append(
             int(bb.utils.idx2binary(bb.utils.state_bool2idx(list(r)), n))
         )
-        att_list.append(int(bb.utils.idx2binary(bb.utils.state_bool2idx(list(r)), n)))
-    attr_color_map = make_color_map(attractor_dict.keys(), set_colors=set_colors)
+        att_list.append(int(bb.utils.idx2binary(
+            bb.utils.state_bool2idx(list(r)), n)))
+    attr_color_map = make_color_map(
+        attractor_dict.keys(), set_colors=set_colors)
 
     if reduction == "pca":
         pca = decomposition.PCA(n_components=2)
@@ -1881,7 +1928,8 @@ def plot_all_random_walks(
     elif reduction == "umap":
         umap = UMAP(n_components=2, metric="jaccard")
         if fit_to_data:
-            binarized_data_df_new = umap.fit_transform(binarized_data_df.values)
+            binarized_data_df_new = umap.fit_transform(
+                binarized_data_df.values)
             att_new = umap.transform(attr_filtered)
         else:
             att_new = umap.fit_transform(attr_filtered)
@@ -1932,7 +1980,8 @@ def plot_all_random_walks(
                         pass
                     walk = line.strip()
                     walk = walk.replace("[", "").replace("]", "").split(",")
-                    walk_states = [bb.utils.idx2binary(int(i), n) for i in walk]
+                    walk_states = [bb.utils.idx2binary(
+                        int(i), n) for i in walk]
                     walk_list = []
                     for i in walk_states:
                         walk_list.append([int(j) for j in i])
@@ -1942,7 +1991,8 @@ def plot_all_random_walks(
                     elif reduction == "umap":
                         walk_new = umap.transform(walk_list)
                     data_walk = pd.DataFrame(walk_new, columns=["0", "1"])
-                    data_walks = pd.concat([data_walks, data_walk], ignore_index=True)
+                    data_walks = pd.concat(
+                        [data_walks, data_walk], ignore_index=True)
                     data_walk["color"] = [
                         (len(data_walk.index) - i) / len(data_walk.index)
                         for i in data_walk.index
@@ -1961,7 +2011,8 @@ def plot_all_random_walks(
                         pass
                     walk = line.strip()
                     walk = walk.replace("[", "").replace("]", "").split(",")
-                    walk_states = [bb.utils.idx2binary(int(i), n) for i in walk]
+                    walk_states = [bb.utils.idx2binary(
+                        int(i), n) for i in walk]
                     walk_list = []
                     for i in walk_states:
                         walk_list.append([int(j) for j in i])
@@ -2051,7 +2102,8 @@ def plot_all_random_walks(
     if show:
         plt.show()
     else:
-        plt.savefig(f"{walk_path}/walks_{starting_attractors}_{perturb}_{save_as}.png")
+        plt.savefig(
+            f"{walk_path}/walks_{starting_attractors}_{perturb}_{save_as}.png")
         plt.close()
 
 
@@ -2292,7 +2344,7 @@ def plot_subgraph(
     :type weight: int, optional
     """
 
-    edge_df = pd.read_csv(network_file, header=None)  ##network file
+    edge_df = pd.read_csv(network_file, header=None)  # network file
 
     G = nx.DiGraph()
     for node in nodes:
