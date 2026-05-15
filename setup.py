@@ -45,7 +45,7 @@ readme = open("README.rst").read()
 
 
 setup(
-    name="bobaT",
+    name="bobat",
     version="0.1.2",
     description="A suite for network inference from single-cell RNAseq and ATACseq data",
     long_description=readme,

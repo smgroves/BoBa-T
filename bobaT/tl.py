@@ -686,8 +686,8 @@ def get_sklearn_metrics(VAL_DIR, plot_cm=True, show=False, save=True, save_stats
                     f"ValueError for {gene}: y_true contains only one label (0). Log-loss is not defined in that case.")
                 ll = np.nan
 
-            summary_stats = summary_stats.append(pd.Series([gene, acc, bal_acc, f1, roc_auc, prec, rec, expl_var, max_err, r2, ll],
-                                                           index=summary_stats.columns), ignore_index=True)
+            summary_stats = pd.concat([summary_stats, pd.Series([gene, acc, bal_acc, f1, roc_auc, prec, rec, expl_var, max_err, r2, ll],
+                                                                index=summary_stats.columns)], ignore_index=True)
             if plot_cm:
                 plt.figure()
                 cm = confusion_matrix(
