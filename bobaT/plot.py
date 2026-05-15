@@ -121,7 +121,7 @@ def plot_roc(fprs, tprs, area, node, save=False, save_dir=None, show_plot=True):
 def plot_aucs(VAL_DIR, save=False, show_plot=True):
     aucs = pd.read_csv(f"{VAL_DIR}/aucs.csv", header=None, index_col=0)
     plt.figure()
-    plt.hist(aucs[1])
+    plt.hist(aucs[1], bins=20)
     if save == True:
         plt.savefig(f"{VAL_DIR}/aucs_plot.pdf")
     if show_plot == True:
@@ -130,8 +130,16 @@ def plot_aucs(VAL_DIR, save=False, show_plot=True):
 
 
 def plot_validation_avgs(
-    fpr_all, tpr_all, num_nodes, area_all, save=False, save_dir=None, show_plot=False
+    fpr_all, tpr_all, num_nodes, area_all, save=False, save_dir=None, show_plot=False, sources=None, remove_sources=False
 ):
+    if remove_sources:
+        print("Removing sources with no parents for average ROC...")
+        ind = ~fpr_all.columns.isin(sources)
+        fpr_all = fpr_all.loc[:, ind]
+        tpr_all = tpr_all.loc[:, ind]
+        area_all = [i for x, i in enumerate(area_all) if ind[x]]
+
+        num_nodes = num_nodes - len(sources)
     plt.figure()
     ax = plt.subplot()
     plt.plot(fpr_all.sum(axis=1) / num_nodes,
