@@ -46,7 +46,7 @@ readme = open("README.rst").read()
 
 setup(
     name="bobaT",
-    version="0.1.1",
+    version="0.1.2",
     description="A suite for network inference from single-cell RNAseq and ATACseq data",
     long_description=readme,
     long_description_content_type="text/x-rst",
@@ -55,7 +55,7 @@ setup(
     url="https://github.com/smgroves/bobaT",
     install_requires=install_requires,
     extras_require={"doc": doc_requires},
-    packages=setuptools.find_packages(exclude = ["tests", "Tutorials.output"]),
+    packages=setuptools.find_packages(exclude=["tests", "Tutorials.output"]),
     classifiers=[
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
