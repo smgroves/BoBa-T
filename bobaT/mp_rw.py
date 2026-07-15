@@ -11,6 +11,6 @@ from graph_tool import all as gt
 from graph_tool.topology import label_components
 from collections import Counter
 import random
-import rw
+from . import rw
 
 # multiprocessing random walks for perfect parallelization

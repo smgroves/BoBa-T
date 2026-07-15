@@ -1,0 +1,21 @@
+# Dependencies needed only to BUILD the documentation.
+# Heavy runtime deps (graph-tool, umap, etc.) are mocked in conf.py, so they
+# are intentionally NOT listed here.
+sphinx>=7.0
+sphinx-rtd-theme>=2.0
+nbsphinx>=0.9
+nbsphinx-link>=1.3
+ipython
+# Real deps that autodoc imports while introspecting the package:
+pandas
+numpy
+scipy
+scikit-learn
+matplotlib
+seaborn
+networkx
+statsmodels
+anndata
+h5py
+click
+requests

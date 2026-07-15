@@ -1,0 +1,11 @@
+/* Small tweaks on top of the Read the Docs theme. */
+
+/* Give notebook output cells a little breathing room. */
+.nbinput, .nboutput {
+    margin-bottom: 0.5rem;
+}
+
+/* Wrap long signatures instead of overflowing horizontally. */
+dl.py dt {
+    white-space: normal;
+}
