@@ -459,8 +459,8 @@ def roc(
         tprs.append(p)
         fprs.append(r)
     # area = auc(fprs, tprs)
-    # AUC function wasn't working... replace with np.trapz
-    area = np.abs(np.trapz(x=fprs, y=tprs))
+    # AUC function wasn't working... replace with np.trapezoid
+    area = np.abs(np.trapezoid(x=fprs, y=tprs))
     if plot == True:
         plot_roc(
             fprs,
