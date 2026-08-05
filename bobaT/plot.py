@@ -25,8 +25,9 @@ from umap import UMAP
 def plot_sklearn_summ_stats(summary_stats, VAL_DIR, fname=""):
     df = pd.melt(summary_stats, id_vars="gene")
     df = df.astype({"variable": "string"})
-    q1 = df.groupby(df.variable).quantile(0.25)["value"]
-    q3 = df.groupby(df.variable).quantile(0.75)["value"]
+    df["value"] = pd.to_numeric(df["value"], errors="coerce")
+    q1 = df.groupby("variable")["value"].quantile(0.25)
+    q3 = df.groupby("variable")["value"].quantile(0.75)
     outlier_top_lim = q3 + 1.5 * (q3 - q1)
     outlier_bottom_lim = q1 - 1.5 * (q3 - q1)
     plt.figure()
@@ -130,16 +131,32 @@ def plot_aucs(VAL_DIR, save=False, show_plot=True):
 
 
 def plot_validation_avgs(
-    fpr_all, tpr_all, num_nodes, area_all, save=False, save_dir=None, show_plot=False, sources=None, remove_sources=False
+    fpr_all, tpr_all, num_nodes, area_all, save=False, save_dir=None, show_plot=False, vertex_dict=None, graph=None, remove_sources=False
 ):
+
     if remove_sources:
-        print("Removing sources with no parents for average ROC...")
+        if vertex_dict is None or graph is None:
+            raise ValueError("vertex_dict and graph must be provided if remove_sources is True")
+        v_names_dict = dict()
+        for vertex_name in list(vertex_dict):
+            v_names_dict[vertex_dict[vertex_name]] = vertex_name
+
+        # root_nodes = [v for v in graph.vertices() if v.in_degree() == 0]
+        sources = []
+        for v in graph.vertices():
+            in_neighbors = graph.get_in_neighbors(v)  # v can be an int index or a 
+            is_self_only = len(in_neighbors) == 1 and in_neighbors[0] == int(v)
+            if len(in_neighbors) == 0 or is_self_only:
+                sources.append(v_names_dict[v])
+
+        print("Removing sources (artificially high ROC) from averaged ROCplot: ", sources)
+
         ind = ~fpr_all.columns.isin(sources)
         fpr_all = fpr_all.loc[:, ind]
         tpr_all = tpr_all.loc[:, ind]
-        area_all = [i for x, i in enumerate(area_all) if ind[x]]
-
+        area_all = [a for x, a in enumerate(area_all) if ind[x]]
         num_nodes = num_nodes - len(sources)
+
     plt.figure()
     ax = plt.subplot()
     plt.plot(fpr_all.sum(axis=1) / num_nodes,
@@ -149,9 +166,9 @@ def plot_validation_avgs(
     plt.ylim(0, 1)
     plt.ylabel("True Positive Rate")
     plt.xlabel("False Positive Rate")
-    plt.title(f"ROC Curve Data \n {np.sum(area_all) / num_nodes}")
+    plt.title(f"ROC Curve Data \n Average AUC: {np.sum(area_all) / num_nodes:.3f} +/- {np.std(area_all):.3f} (n={num_nodes} genes)")
     if save == True:
-        plt.savefig(f"{save_dir}/ROC_AUC_average.pdf")
+        plt.savefig(f"{save_dir}/ROC_AUC_average_over_genes.pdf")
     if show_plot == True:
         plt.show()
     plt.close()

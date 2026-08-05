@@ -724,6 +724,84 @@ def get_sklearn_metrics(VAL_DIR, plot_cm=True, show=False, save=True, save_stats
             summary_stats.to_csv(f"{VAL_DIR}/summary_stats.csv")
         return summary_stats
 
+#plotting the average AUC curve across ALL SAMPLES in a group (after averaging TPS and FPR for all genes)
+def get_sample_avg_curve(fpr_all, tpr_all, num_nodes, area_all,
+                            remove_sources=True, vertex_dict=None, graph=None):
+    if remove_sources:
+        if vertex_dict is None or graph is None:
+            raise ValueError("vertex_dict and graph must be provided if remove_sources is True")
+        v_names_dict = dict()
+        for vertex_name in list(vertex_dict):
+            v_names_dict[vertex_dict[vertex_name]] = vertex_name
+
+        # root_nodes = [v for v in graph.vertices() if v.in_degree() == 0]
+        sources = []
+        for v in graph.vertices():
+            in_neighbors = graph.get_in_neighbors(v)  # v can be an int index or a 
+            is_self_only = len(in_neighbors) == 1 and in_neighbors[0] == int(v)
+            if len(in_neighbors) == 0 or is_self_only:
+                sources.append(v_names_dict[v])
+
+        print("Removing sources (artificially high ROC) from averaged ROCplot: ", sources)
+
+        ind = ~fpr_all.columns.isin(sources)
+        fpr_all = fpr_all.loc[:, ind]
+        tpr_all = tpr_all.loc[:, ind]
+        area_all = [a for x, a in enumerate(area_all) if ind[x]]
+        num_nodes = num_nodes - len(sources)
+
+    fpr_avg = (fpr_all.sum(axis=1) / num_nodes).values
+    tpr_avg = (tpr_all.sum(axis=1) / num_nodes).values
+    auc_avg = np.sum(area_all) / num_nodes
+
+    return fpr_avg, tpr_avg, auc_avg
+
+def plot_cohort_roc_with_ci(
+    sample_fprs,
+    sample_tprs,
+    n_boot=2000,
+    ci=95,
+    save=False,
+    save_dir=None,
+    show_plot=False,
+    fname="",
+):
+    fpr_matrix = np.vstack(sample_fprs)
+    tpr_matrix = np.vstack(sample_tprs)
+    n_samples = fpr_matrix.shape[0]
+
+    mean_fpr = fpr_matrix.mean(axis=0)
+    mean_tpr = tpr_matrix.mean(axis=0)
+
+    rng = np.random.default_rng()
+    boot_tpr = np.zeros((n_boot, tpr_matrix.shape[1]))
+    for b in range(n_boot):
+        idx = rng.integers(0, n_samples, n_samples)
+        boot_tpr[b] = tpr_matrix[idx].mean(axis=0)
+
+    lower_tpr = np.percentile(boot_tpr, (100 - ci) / 2, axis=0)
+    upper_tpr = np.percentile(boot_tpr, 100 - (100 - ci) / 2, axis=0)
+
+    plt.figure()
+    ax = plt.subplot()
+    plt.plot(mean_fpr, mean_tpr, "-o", label="Mean ROC (across samples)")
+    plt.fill_between(mean_fpr, lower_tpr, upper_tpr, alpha=0.3, label=f"{ci}% CI")
+    ax.plot(ax.get_xlim(), ax.get_ylim(), ls="--", c=".3")
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.ylabel("True Positive Rate")
+    plt.xlabel("False Positive Rate")
+    plt.title(f"Cohort ROC (n={n_samples} samples)\nMean AUC = {np.trapezoid(mean_tpr, mean_fpr):.3f}")
+    plt.legend()
+    if save == True:
+        suffix = f"_{fname}" if fname != "" else ""
+        plt.savefig(f"{save_dir}/ROC_AUC_cohort_CI{suffix}.pdf")
+    if show_plot == True:
+        plt.show()
+    plt.close()
+
+    return mean_fpr, mean_tpr, lower_tpr, upper_tpr
+
 ### ------------ ATTRACTORS ------------ ###
 
 # tf_basin --> if -1, use average distance between clusters. otherwise use the same size basin for all phenotypes

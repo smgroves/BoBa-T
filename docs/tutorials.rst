@@ -33,6 +33,53 @@ The workflow has four main stages, as well as a set of validation, plotting, and
    * BoBa-T was tested on multiomic data where the same cells have chromatin accessibility and RNA count data. While this is not required, we have not tested the algorithm on independent data sourcesXXX. 
    * In the absence of chromatin accessibility data, the method can fall back to the ChIP-seq database-searching method described in Wooten, Groves, et al (2019). A literature-derived putative gene list is useful for removing unrelated TFs, though not required.
 
+.. list-table::
+   :header-rows: 1
+
+   * - scATAC-seq available?
+     - scRNA-seq available?
+     - pseudotime available?
+     - multiple timepoints?
+     - Network Generation Method
+     - Rule-Fitting Method
+   * - ❌ 
+     - ❌
+     - ❌
+     - ❌
+     - Use our previous `BooleaBayes <https://github.com/smgroves/BooleaBayes>`_ package to generate network from ChIP-seq databases
+     - Use our previous `BooleaBayes <https://github.com/smgroves/BooleaBayes>`_ package to fit rules from bulk RNA-seq data
+   * - ❌ 
+     - ✅
+     - ❌
+     - ❌
+     - Use the :doc:`base network generation method <tutorials/network_chea>`
+     - Use the :doc:`base rule-fitting method <tutorials/inference_example>`
+   * - ✅ 
+     - ✅
+     - ❌
+     - ❌
+     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`base rule-fitting method <tutorials/inference_example>`   
+   * - ✅ 
+     - ✅
+     - ✅
+     - ❌
+     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`rule-fitting method <tutorials/inference_example>` 
+   * - ✅ 
+     - ✅
+     - ❌
+     - ✅
+     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`pseudotime rule-fitting method <tutorials/inference_pseudotime>` 
+   * - ✅ 
+     - ✅
+     - ✅
+     - ❌
+     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`two-timepoint rule-fitting method <tutorials/inference_two_timepoints>` 
+
+
 1. Building a base network structure
 =====================================
 
@@ -40,7 +87,7 @@ The base network defines the candidate regulatory edges (which transcription fac
 
 * **From scATAC-seq data** — derive edges from chromatin accessibility using a putative TF-target input, then prune with LASSO feature selection. This option uses scRNA-seq data for LASSO regression.
 
-* **From ChEA databases (original BooleaBayes method)** — build the network from curated transcription-factor–target interactions.
+* **From ChEA databases (adaptation of the original BooleaBayes method)** — build the network from curated transcription-factor–target interactions.
 
 There are options to preserve non-TF genes as readouts of the network for later interpretability; these genes will not affect the dynamics of the network.
 

@@ -5,7 +5,7 @@ Installation
 System requirements
 ====================
 
-BoBa-T is compatible with Python 3.8 and above and runs on CPU hardware. It has
+BoBa-T is compatible with Python 3.8 and has been tested up to Python 3.13. It has
 been tested on Windows and macOS operating systems.
 
 Dependencies
