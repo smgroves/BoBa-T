@@ -7,8 +7,10 @@ BoBa-T: A single-cell gene regulatory network inference and simulation tool
    :width: 200px
    :alt: BoBa-T logo
 
-**BoBa-T** (**Bo**olean **Ba**yesian **T**ranscription Factor Networks) is a suite of network inference tools to derive and simulate gene
-regulatory networks from transcriptomics (and chromatin accessibility) data. It is the expanded and refined single-cell update to
+**BoBa-T** ( **Bo**olean **Ba**yesian **T**ranscription Factor Networks) is a suite of network inference tools to derive and simulate gene
+regulatory networks from transcriptomics (and chromatin accessibility) data.
+
+It is the expanded and refined single-cell update to
 BooleaBayes, published in PLOS Computational Biology, `Wooten et al. 2019`_. The benefit of using BoBa-T as opposed to BooleaBayes is that it can infer regulatory networks from **single-cell RNA-seq data**, and it can incorporate **chromatin accessibility data (scATAC-seq)** to improve the accuracy of the inferred network. The method is designed to be robust to noise in single-cell data, and can handle large datasets with many genes and cells. See the paper here: Bhattacharya et al. (2026)XXX. 
 
 
