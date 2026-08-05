@@ -67,10 +67,17 @@ The workflow has four main stages, as well as a set of validation, plotting, and
    * - ❌
      - ✅ 
      - ✅
+     - ❌
+     - ❌
+     - Use the :doc:`DIRECT-NET base network and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`base rule-fitting method <tutorials/inference_example>` 
+   * - ❌
+     - ✅ 
+     - ✅
      - ✅
      - ❌
      - Use the :doc:`DIRECT-NET base network and LASSO pruning method <tutorials/network_example>`
-     - Use the :doc:`pseudotime rule-fitting method <tutorials/inference_pseudotime>` 
+     - Use the :doc:`pseudotime rule-fitting method <tutorials/inference_pseudotime>`
    * - ❌
      - ✅ 
      - ✅
