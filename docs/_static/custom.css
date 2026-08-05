@@ -9,3 +9,23 @@
 dl.py dt {
     white-space: normal;
 }
+
+/* Widen the page: shrink the grey margin on the right of the content. */
+.wy-nav-content {
+    max-width: 1100px;
+}
+
+/* Let table cells wrap their text instead of forcing a horizontal scrollbar. */
+.rst-content table.docutils td,
+.rst-content table.docutils th {
+    white-space: normal;
+    overflow-wrap: break-word;
+}
+
+/* Give the table its full width and let columns size to content, so short
+   header labels (e.g. "scATAC-seq available?") don't get squeezed into
+   narrow, mid-word-wrapped columns. */
+.rst-content table.docutils {
+    width: 100%;
+    table-layout: auto;
+}
