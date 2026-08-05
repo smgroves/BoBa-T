@@ -36,47 +36,47 @@ The workflow has four main stages, as well as a set of validation, plotting, and
 .. list-table::
    :header-rows: 1
 
-   * - scATAC-seq available?
+   * - scATAC-seq available? (Independent dataset)
+     - scATAC-seq available? (Multiomic dataset)
      - scRNA-seq available?
-     - pseudotime available?
-     - multiple timepoints?
+     - Pseudotime available?
+     - Multiple timepoints?
      - Network Generation Method
      - Rule-Fitting Method
    * - ❌ 
+     - ❌ 
      - ❌
      - ❌
      - ❌
      - Use our previous `BooleaBayes <https://github.com/smgroves/BooleaBayes>`_ package to generate network from ChIP-seq databases
      - Use our previous `BooleaBayes <https://github.com/smgroves/BooleaBayes>`_ package to fit rules from bulk RNA-seq data
    * - ❌ 
+     - ❌ 
      - ✅
      - ❌
      - ❌
      - Use the :doc:`base network generation method <tutorials/network_chea>`
      - Use the :doc:`base rule-fitting method <tutorials/inference_example>`
    * - ✅ 
+     - ❌ 
      - ✅
      - ❌
      - ❌
-     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example_independent_ATAC_RNA>`
      - Use the :doc:`base rule-fitting method <tutorials/inference_example>`   
-   * - ✅ 
+   * - ❌
+     - ✅ 
      - ✅
      - ✅
      - ❌
-     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
-     - Use the :doc:`rule-fitting method <tutorials/inference_example>` 
-   * - ✅ 
-     - ✅
-     - ❌
-     - ✅
-     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - Use the :doc:`DIRECT-NET base network and LASSO pruning method <tutorials/network_example>`
      - Use the :doc:`pseudotime rule-fitting method <tutorials/inference_pseudotime>` 
-   * - ✅ 
-     - ✅
+   * - ❌
+     - ✅ 
      - ✅
      - ❌
-     - Use the :doc:`chromatin accessibility and LASSO pruning method <tutorials/network_example>`
+     - ✅
+     - Use the :doc:`DIRECT-NET base network and LASSO pruning method <tutorials/network_example>`
      - Use the :doc:`two-timepoint rule-fitting method <tutorials/inference_two_timepoints>` 
 
 
