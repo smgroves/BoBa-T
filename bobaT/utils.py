@@ -95,15 +95,13 @@ def binarize_data_df(
     :return: DataFrame of binary data, genes by samples
     :rtype: Pandas DataFrame
     """
-    binaries = pd.DataFrame(columns=nodes)
+    rows = []
     f = np.vectorize(lambda x: "0" if x < threshold else "1")
     for sample in data.index:
         idx = state2idx("".join(f(data.loc[sample])))
         bin = idx2binary(idx, len(nodes))
-        att_list = [int(i) for i in bin]
-        binaries = binaries.append(
-            pd.DataFrame(att_list, index=nodes, columns=[sample]).T
-        )
+        rows.append([int(i) for i in bin])
+    binaries = pd.DataFrame(rows, index=data.index, columns=nodes)
     return binaries
 
 
