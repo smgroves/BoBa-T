@@ -49,11 +49,22 @@ def reorder_binary_decision_tree(old_regulator_order, regulators):
 
 
 # If A=f(B,C,D), this checks whether B being ON or OFF has an impact > threshold for any combination of C={ON/OFF} D={ON/OFF}
-def detect_irrelevant_regulator(regulators, rule, threshold=0.1):
+#
+# `heat` (cells x 2**n, the same soft leaf-membership matrix get_rules/get_rules_scvelo
+# already computes while fitting the rule) switches tot_dif/signed_tot_dif from a plain
+# sum over every combination of the *other* regulators (treating every combination as
+# equally likely) to a data-weighted average, weighted by how often each combination
+# actually occurs in the real training data (leaf_weights = heat.mean(axis=0)). Default
+# as of 2026-08: pass heat explicitly to get this data-weighted behavior; heat=None keeps
+# the original unweighted-sum behavior for any external caller that doesn't have it.
+# max_dif (used for irrelevant-regulator pruning) is unchanged either way.
+def detect_irrelevant_regulator(regulators, rule, threshold=0.1, heat=None):
     n = len(regulators)
     max_difs = []
     tot_difs = []
     signed_tot_difs = []
+
+    leaf_weights = heat.mean(axis=0) if heat is not None else None
 
     irrelevant = []
     for r, regulator in enumerate(regulators):
@@ -61,12 +72,25 @@ def detect_irrelevant_regulator(regulators, rule, threshold=0.1):
         max_dif = 0
         tot_dif = 0
         signed_tot_dif = 0
+        total_weight = 0
         leaves = ut.get_leaves_of_regulator(2**n, r)
         for i, j in zip(*leaves):
             dif = np.abs(rule[j] - rule[i])
             max_dif = max(dif, max_dif)
-            tot_dif = tot_dif + dif
-            signed_tot_dif = signed_tot_dif + rule[j] - rule[i]
+            if leaf_weights is None:
+                tot_dif = tot_dif + dif
+                signed_tot_dif = signed_tot_dif + rule[j] - rule[i]
+            else:
+                # weight = P(this combination of the OTHER regulators, marginalized over
+                # this one) -- same context whether this regulator is on (leaf j) or off
+                # (leaf i), so summing the two leaves' weights gives that marginal.
+                context_weight = leaf_weights[i] + leaf_weights[j]
+                tot_dif = tot_dif + context_weight * dif
+                signed_tot_dif = signed_tot_dif + context_weight * (rule[j] - rule[i])
+                total_weight = total_weight + context_weight
+        if leaf_weights is not None and total_weight > 0:
+            tot_dif = tot_dif / total_weight
+            signed_tot_dif = signed_tot_dif / total_weight
         max_difs.append(max_dif)
         tot_difs.append(tot_dif)
         signed_tot_difs.append(signed_tot_dif)
@@ -177,7 +201,7 @@ def get_rules_scvelo(
                     tot_regulator_relevance,
                     signed_tot_regulator_relevance,
                 ) = detect_irrelevant_regulator(
-                    regulators, rules[gene], threshold=threshold
+                    regulators, rules[gene], threshold=threshold, heat=heat
                 )
 
                 old_regulator_order = [i for i in regulators]
@@ -339,7 +363,7 @@ def get_rules(
                     tot_regulator_relevance,
                     signed_tot_regulator_relevance,
                 ) = detect_irrelevant_regulator(
-                    regulators, rules[gene], threshold=threshold
+                    regulators, rules[gene], threshold=threshold, heat=heat
                 )
 
                 old_regulator_order = [i for i in regulators]
@@ -652,7 +676,7 @@ def get_sklearn_metrics(VAL_DIR, plot_cm=True, show=False, save=True, save_stats
                                        for x in val_df['actual'] > 0.5]
             val_df['predicted_binary'] = [{True: 1, False: 0}[
                 x] for x in val_df['predicted'] > 0.5]
-            gene = f.split("/")[-1].split("_")[0]
+            gene = os.path.basename(f).removesuffix("_validation.csv")
             if verbose:
                 print(gene)
 
