@@ -273,8 +273,34 @@ def get_rules(
     save_dir="rules",
     save_plot=True,
     show_plot=False,
-    hlines=None
+    hlines=None,
+    pseudocount_mode="max_heat",
+    pseudocount_c=1.0,
+    pseudocount_target="uniform",
 ):
+    """
+    pseudocount_mode: controls how much WEIGHT the pseudo-observation gets for a given leaf.
+        "max_heat" (default, original behavior): weight = 1-max(heat[:, leaf]) -- a leaf only
+        escapes the pull toward the anchor (see pseudocount_target) if at least one single
+        cell is a confident (near-1 heat) match for it. "aggregate": weight =
+        pseudocount_c / (pseudocount_c + sum(heat[:, leaf])), a Beta-style pseudocount tied to
+        the leaf's TOTAL weighted evidence rather than its single best-matching cell -- a leaf
+        with many moderately-confident cells accumulates enough aggregate weight to escape the
+        pull even with no single confident match. On the SCLC 6667 network, this mode alone
+        (isolated from an earlier, unrelated remove_selfloops network-loading mismatch --
+        barcode 7777) showed no measurable benefit on external validation once that mismatch
+        was corrected; kept as an option, not a recommendation.
+    pseudocount_c: only used when pseudocount_mode="aggregate". Roughly, the number of
+        fully-confident-cells'-worth of aggregate evidence a leaf needs before the prior's
+        pull toward the anchor meaningfully fades.
+    pseudocount_target: controls what VALUE the pseudo-observation is anchored to.
+        "uniform" (default, original behavior): 0.5, i.e. an agnostic prior with no
+        information about which way an under-evidenced leaf should lean. "marginal_rate":
+        the gene's own marginal rate (data[gene].mean(), its overall on/off frequency across
+        all training cells) -- an empirical-Bayes anchor appropriate for single-cell data,
+        where most genes are not naturally balanced 50/50, so pulling a thin-evidence leaf
+        toward 0.5 can be a systematic bias for a gene that's rarely (or almost always) on.
+    """
     v_names = dict()
     for vertex_name in list(vertex_dict):
         # invert the vertex_dict
@@ -350,11 +376,31 @@ def get_rules(
                 # had high weight will end up with a high weight of 0.5. For
                 # instance, if the best sample has a weight 0.1 (crappy), the
                 # rule will have a sample added with weight 0.9, and 50% prob.
-                max_heat = 1 - np.max(heat, axis=0)
+                if pseudocount_mode == "max_heat":
+                    pseudo_weight = 1 - np.max(heat, axis=0)
+                elif pseudocount_mode == "aggregate":
+                    total_heat = np.sum(heat, axis=0)
+                    pseudo_weight = pseudocount_c / (pseudocount_c + total_heat)
+                else:
+                    raise ValueError(
+                        f"Unknown pseudocount_mode: {pseudocount_mode!r} "
+                        "(expected 'max_heat' or 'aggregate')"
+                    )
+
+                if pseudocount_target == "uniform":
+                    anchor = 0.5
+                elif pseudocount_target == "marginal_rate":
+                    anchor = float(data[gene].mean())
+                else:
+                    raise ValueError(
+                        f"Unknown pseudocount_target: {pseudocount_target!r} "
+                        "(expected 'uniform' or 'marginal_rate')"
+                    )
+
                 for i in range(prob_01.shape[1]):
 
-                    prob_01[0, i] += max_heat[i] * 0.5
-                    prob_01[1, i] += max_heat[i] * 0.5
+                    prob_01[0, i] += pseudo_weight[i] * anchor
+                    prob_01[1, i] += pseudo_weight[i] * (1 - anchor)
 
                 # The rule is normalized so that prob(ON)+prob(OFF)=1
                 rules[gene] = prob_01[0, :] / np.sum(prob_01, axis=0)
