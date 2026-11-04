@@ -195,7 +195,81 @@ def process_chea_lists(data, G = None):
 
 
 # TODO: Deal with aliases!!!!!!!!!!!!!
-def build_tf_network(G, tf, tfs):
+def _first_token(term):
+    return [term.split(' ')[0]]
+
+def _jaspar_2025_sources(term):
+    # dimer motifs are named "TF1::TF2"; credit each partner
+    return term.split(' ')[0].split('::')
+
+# Parsers for the TF name(s) in each library's term names, matching current Enrichr formats.
+# In each of these libraries a term is a TF and its gene set is that TF's targets, so a hit
+# for `gene` in term `t` means an edge source(t) -> gene.
+LIBRARY_PARSERS = {
+    'ChEA_2013': lambda t: [t.split('-')[0]],                      # 'EZH2-18974828-MESC-MOUSE'
+    'ChEA_2015': _first_token,                                     # 'SUZ12 18555785 ChIP-Seq MESC Mouse'
+    'ChEA_2016': _first_token,
+    'ChEA_2022': _first_token,
+    'ENCODE_TF_ChIP-seq_2014': _first_token,                       # 'CTCF H1'
+    'ENCODE_TF_ChIP-seq_2015': _first_token,                       # 'MAX H1-hESC hg19'
+    'ENCODE_and_ChEA_Consensus_TFs_from_ChIP-X': _first_token,     # 'EGR1 CHEA'
+    'TRANSFAC_and_JASPAR_PWMs': _first_token,                      # 'TEAD2 (human)'
+    'JASPAR_PWM_Human_2025': _jaspar_2025_sources,                 # 'ELK1::HOXB13'
+    'JASPAR_PWM_Mouse_2025': _jaspar_2025_sources,                 # 'NEUROD2'
+    'TRRUST_Transcription_Factors_2019': _first_token,             # 'FOXA2 mouse'
+    'TF_Perturbations_Followed_by_Expression': _first_token,       # 'SOX3 KO MOUSE GSE53760 ...'
+    'Rummagene_transcription_factors': lambda t: [t.split(' ')[-1]],  # '...-Gene Name AR'
+}
+
+# Binding (ChIP), motif, and curated TF-target libraries available in Enrichr as of 2026.
+# TF_Perturbations_Followed_by_Expression (indirect, expression-based) and
+# Rummagene_transcription_factors (mined supplementary tables) are parsed but not included;
+# pass them explicitly in `libraries` to use them.
+CURRENT_TF_LIBRARIES = [
+    'ChEA_2013', 'ChEA_2015', 'ChEA_2016', 'ChEA_2022',
+    'ENCODE_TF_ChIP-seq_2014', 'ENCODE_TF_ChIP-seq_2015',
+    'ENCODE_and_ChEA_Consensus_TFs_from_ChIP-X',
+    'TRANSFAC_and_JASPAR_PWMs', 'JASPAR_PWM_Human_2025', 'JASPAR_PWM_Mouse_2025',
+    'TRRUST_Transcription_Factors_2019',
+]
+
+def build_tf_network(G, tf, tfs, libraries='current'):
+    """Add edges into `tf` from any TF in `tfs` that Enrichr lists as a regulator of it.
+
+    :param G: graph to add edges to; each edge stores its supporting libraries in ``db``
+    :type G: networkx.DiGraph
+    :param tf: gene to query
+    :type tf: str
+    :param tfs: candidate regulators; only edges whose source is in this list are added
+    :type tfs: List[str]
+    :param libraries: ``"current"`` (default) uses ``CURRENT_TF_LIBRARIES``; a list of
+        names from ``LIBRARY_PARSERS`` uses those. Both use parsers matching current
+        Enrichr term names. ``"legacy"`` (or None) keeps the original library list and
+        term parsing; with current Enrichr term names, only ChEA_2013 and
+        TRANSFAC_and_JASPAR_PWMs yield edges in that mode.
+    :type libraries: None, str, or List[str]
+    :return: G with edges added
+    :rtype: networkx.DiGraph
+    """
+    if libraries is not None and libraries != 'legacy':
+        if libraries == 'current': libraries = CURRENT_TF_LIBRARIES
+        unknown = [lib for lib in libraries if lib not in LIBRARY_PARSERS]
+        if unknown:
+            raise ValueError("No parser for libraries %s; known: %s" % (unknown, sorted(LIBRARY_PARSERS)))
+        print(tf)
+        enrichr = query_gene(tf)
+        for lib in libraries:
+            if lib not in enrichr['gene']: continue
+            sources = set()
+            for term in enrichr['gene'][lib]:
+                sources.update(str(s).upper() for s in LIBRARY_PARSERS[lib](term))
+            for source in sources:
+                if source in tfs:
+                    if tf in G.adj[source]:
+                        if lib not in G.adj[source][tf]['db']: G.adj[source][tf]['db'].append(lib)
+                    else: G.add_edge(source, tf, db=[lib,])
+        return G
+
 #    G = nx.DiGraph()
 #    for gene in tfs:
 #        G.add_node(gene)

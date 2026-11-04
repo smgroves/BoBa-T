@@ -48,13 +48,35 @@ def prune(G_orig, prune_sources=True, prune_sinks=True):
     return G
 
 
-def prune_info(G_orig, prune_self_loops=True):
+def db_source_group(db):
+    """Map an Enrichr library name to the independent evidence source it comes from.
+
+    Versions of the same collection (ChEA_2013/2015/2016/2022, ENCODE_TF_ChIP-seq_2014/2015)
+    share most of their experiments, so they are one source. ENCODE_and_ChEA_Consensus is
+    derived from ChEA and ENCODE and is grouped with ChEA. All PWM/motif libraries
+    (TRANSFAC_and_JASPAR_PWMs, JASPAR_PWM_Human_2025, JASPAR_PWM_Mouse_2025) are one source.
+    Any other library is its own source.
+
+    :param db: Enrichr library name
+    :type db: str
+    :return: source group name
+    :rtype: str
+    """
+    if "ChEA" in db: return "ChEA"
+    if db.startswith("ENCODE_TF_ChIP-seq"): return "ENCODE"
+    if "PWM" in db: return "PWM"
+    return db
+
+
+def prune_info(G_orig, prune_self_loops=True, collapse_db_versions=False):
     """Prune graph to only include edges with evidence in multiple databases
 
     :param G_orig: NetworkX graph to prune
     :type G_orig: networkx.DiGraph
     :param prune_self_loops: Whether to prune self-loops in the network (edges where parent node == child node), defaults to True
     :type prune_self_loops: bool, optional
+    :param collapse_db_versions: If True, count libraries from the same source (e.g. all ChEA versions) as one database; see :func:`db_source_group`, defaults to False
+    :type collapse_db_versions: bool, optional
     :return: Pruned network
     :rtype: networkx.DiGraph
     """
@@ -66,6 +88,8 @@ def prune_info(G_orig, prune_self_loops=True):
                 G.remove_edge(tf, target)
                 continue
             if "db" not in edges[target]:
+                G.remove_edge(tf, target)
+            elif collapse_db_versions and len({db_source_group(db) for db in edges[target]["db"]}) < 2:
                 G.remove_edge(tf, target)
             elif len(edges[target]["db"]) < 2:
                 G.remove_edge(tf, target)
@@ -107,6 +131,8 @@ def make_network(
     do_prune_to_chea=True,
     save_unfiltered=False,
     network_name="network",
+    libraries="current",
+    collapse_db_versions=False,
 ):
     """Make network from list of tfs and save as csv files with various levels of pruning.
 
@@ -130,6 +156,10 @@ def make_network(
     :type save_unfiltered: bool, optional
     :param network_name: Prefix name of network csv files, defaults to `network`
     :type network_name: str
+    :param libraries: Enrichr libraries to search, passed to :func:`bobaT.enrichr.build_tf_network`. ``"current"`` uses ``bobaT.enrichr.CURRENT_TF_LIBRARIES`` (adds ChEA_2022, JASPAR 2025 and TRRUST 2019, and parses all libraries with current Enrichr term names); ``"legacy"`` keeps the original library list and parsing (before Nov 2026); or pass a list of names from ``bobaT.enrichr.LIBRARY_PARSERS``, defaults to ``"current"``
+    :type libraries: None, str, or List[str], optional
+    :param collapse_db_versions: Passed to :func:`prune_info`. If True, the high-evidence filter counts libraries from the same source (all ChEA versions and the ENCODE+ChEA consensus; ENCODE 2014/2015; all PWM libraries) as one database, so an edge needs support from two independent sources, defaults to False
+    :type collapse_db_versions: bool, optional
     :return: Network with highest level of pruning
     :rtype: NetworkX Graph
     """
@@ -145,7 +175,7 @@ def make_network(
         G.add_node(tf)
 
     for tf in tfs:
-        enrichr.build_tf_network(G, tf, tfs)
+        enrichr.build_tf_network(G, tf, tfs, libraries=libraries)
         time.sleep(1)
 
     # for edge in prelim_G.edges():
@@ -175,7 +205,7 @@ def make_network(
         Gp = G
 
     if do_prune_info:
-        Gpp = prune_info(Gp, prune_self_loops=prune_self_loops)
+        Gpp = prune_info(Gp, prune_self_loops=prune_self_loops, collapse_db_versions=collapse_db_versions)
 
         outfile = open(
             os.path.join(outdir, f"{network_name}_high_evidence.csv"),

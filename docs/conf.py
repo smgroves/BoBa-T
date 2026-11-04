@@ -16,8 +16,8 @@ author = "Sarah Groves"
 copyright = "2026, Sarah Groves"
 
 # The full version, including alpha/beta/rc tags.
-release = "0.1.4"
-version = "0.1"
+release = "0.2.0"
+version = "0.2"
 
 # -- General configuration ---------------------------------------------------
 
