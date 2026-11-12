@@ -115,3 +115,4 @@ venv.bak/
 # IntelliJ
 .idea/
 .DS_Store
+CLAUDE.md

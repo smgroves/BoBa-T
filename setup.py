@@ -25,7 +25,8 @@ install_requires = [
     "click",
     "magic-impute",
     "networkx",
-    'statsmodels'
+    'statsmodels',
+    "tqdm",
 ]
 
 doc_requires = [

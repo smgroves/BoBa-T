@@ -22,6 +22,24 @@ from scipy.stats import mannwhitneyu
 from statsmodels.stats.multitest import multipletests
 import json
 from sklearn.metrics import *
+from tqdm.auto import tqdm
+
+
+def _gene_iter(nodes, verbose, desc="Fitting rules"):
+    """Wrap the node list in a progress bar when verbose == 1."""
+    if verbose != 1:
+        yield from nodes
+        return
+    bar = tqdm(nodes, desc=desc, unit="gene")
+    for gene in bar:
+        bar.set_postfix_str(str(gene))
+        yield gene
+
+
+def _note(msg, verbose):
+    """Print a message without breaking the progress bar."""
+    if verbose >= 1:
+        tqdm.write(msg)
 
 
 ### ------------ RULE FITTING ----------- ###
@@ -58,7 +76,8 @@ def reorder_binary_decision_tree(old_regulator_order, regulators):
 # as of 2026-08: pass heat explicitly to get this data-weighted behavior; heat=None keeps
 # the original unweighted-sum behavior for any external caller that doesn't have it.
 # max_dif (used for irrelevant-regulator pruning) is unchanged either way.
-def detect_irrelevant_regulator(regulators, rule, threshold=0.1, heat=None):
+def detect_irrelevant_regulator(regulators, rule, threshold=0.1, heat=None, verbose=1):
+    # verbose >= 2 prints the original per-regulator debug line.
     n = len(regulators)
     max_difs = []
     tot_difs = []
@@ -68,7 +87,8 @@ def detect_irrelevant_regulator(regulators, rule, threshold=0.1, heat=None):
 
     irrelevant = []
     for r, regulator in enumerate(regulators):
-        print(f"...checking if {regulator} is irrelevant")
+        if verbose >= 2:
+            print(f"...checking if {regulator} is irrelevant")
         max_dif = 0
         tot_dif = 0
         signed_tot_dif = 0
@@ -115,6 +135,7 @@ def get_rules_scvelo(
     threshold=0,
     save_dir="rules",
     hlines=None,
+    verbose=1,
 ):
     v_names = dict()
     # Invert the vertex_dict
@@ -126,8 +147,9 @@ def get_rules_scvelo(
     strengths = pd.DataFrame(index=nodes, columns=nodes)
     signed_strengths = pd.DataFrame(index=nodes, columns=nodes)
 
-    for gene in nodes:
-        print(gene)
+    for gene in _gene_iter(nodes, verbose):
+        if verbose >= 2:
+            print(gene)
         # for each node of the network
         irrelevant = []
         n_irrelevant_new = 0
@@ -156,7 +178,7 @@ def get_rules_scvelo(
                 heat = np.ones((data.shape[0], 2**n))
 
                 for leaf in range(2**n):
-                    if leaf % 50 == 0:
+                    if verbose >= 2 and leaf % 50 == 0:
                         print(leaf)
                     binary = ut.idx2binary(leaf, len(regulators))
                     binary = [{"0": False, "1": True}[i] for i in binary]
@@ -201,7 +223,8 @@ def get_rules_scvelo(
                     tot_regulator_relevance,
                     signed_tot_regulator_relevance,
                 ) = detect_irrelevant_regulator(
-                    regulators, rules[gene], threshold=threshold, heat=heat
+                    regulators, rules[gene], threshold=threshold, heat=heat,
+                    verbose=verbose,
                 )
 
                 old_regulator_order = [i for i in regulators]
@@ -209,6 +232,13 @@ def get_rules_scvelo(
                     regulators, key=lambda x: max_regulator_relevance[x], reverse=True
                 )
                 if max_regulator_relevance[regulators[-1]] < threshold:
+                    _note(
+                        f"{gene}: removed regulator {regulators[-1]} "
+                        f"(max effect on P({gene} ON) = "
+                        f"{max_regulator_relevance[regulators[-1]]:.3f} "
+                        f"< threshold {threshold})",
+                        verbose,
+                    )
                     irrelevant.append(regulators[-1])
                     old_regulator_order.remove(regulators[-1])
                     regulators.remove(regulators[-1])
@@ -221,6 +251,12 @@ def get_rules_scvelo(
                 n_irrelevant_new = len(irrelevant)
 
             if len(regulators) == 0 and gene not in irrelevant:
+                if len(irrelevant) > 0:
+                    _note(
+                        f"{gene}: all regulators removed; "
+                        f"refitting with {gene} as its own regulator",
+                        verbose,
+                    )
                 regulators = [
                     gene,
                 ]
@@ -277,6 +313,7 @@ def get_rules(
     pseudocount_mode="max_heat",
     pseudocount_c=1.0,
     pseudocount_target="uniform",
+    verbose=1,
 ):
     """
     pseudocount_mode: controls how much WEIGHT the pseudo-observation gets for a given leaf.
@@ -300,6 +337,12 @@ def get_rules(
         all training cells) -- an empirical-Bayes anchor appropriate for single-cell data,
         where most genes are not naturally balanced 50/50, so pulling a thin-evidence leaf
         toward 0.5 can be a systematic bias for a gene that's rarely (or almost always) on.
+    verbose: how much to print while fitting.
+        0: nothing.
+        1 (default): a progress bar over genes, plus a note each time a regulator is
+        removed for having too little effect (only possible when threshold > 0).
+        2: the original debug output (gene counter, leaf counter every 100 leaves,
+        and "...checking if X is irrelevant" for every regulator on every pass).
     """
     v_names = dict()
     for vertex_name in list(vertex_dict):
@@ -311,9 +354,10 @@ def get_rules(
     strengths = pd.DataFrame(index=nodes, columns=nodes)
     signed_strengths = pd.DataFrame(index=nodes, columns=nodes)
     total_nodes = len(nodes)
-    for xx, gene in enumerate(nodes):
-        print("Fitting ", xx, "/", total_nodes, "rules")
-        print(gene)
+    for xx, gene in enumerate(_gene_iter(nodes, verbose)):
+        if verbose >= 2:
+            print("Fitting ", xx, "/", total_nodes, "rules")
+            print(gene)
         # for each node of the network
         irrelevant = []
         n_irrelevant_new = 0
@@ -343,7 +387,7 @@ def get_rules(
                 heat = np.ones((data.shape[0], 2**n))
 
                 for leaf in range(2**n):
-                    if leaf % 100 == 0:
+                    if verbose >= 2 and leaf % 100 == 0:
                         print(leaf)
                     binary = ut.idx2binary(leaf, len(regulators))
                     binary = [{"0": False, "1": True}[i] for i in binary]
@@ -409,7 +453,8 @@ def get_rules(
                     tot_regulator_relevance,
                     signed_tot_regulator_relevance,
                 ) = detect_irrelevant_regulator(
-                    regulators, rules[gene], threshold=threshold, heat=heat
+                    regulators, rules[gene], threshold=threshold, heat=heat,
+                    verbose=verbose,
                 )
 
                 old_regulator_order = [i for i in regulators]
@@ -417,6 +462,13 @@ def get_rules(
                     regulators, key=lambda x: max_regulator_relevance[x], reverse=True
                 )
                 if max_regulator_relevance[regulators[-1]] < threshold:
+                    _note(
+                        f"{gene}: removed regulator {regulators[-1]} "
+                        f"(max effect on P({gene} ON) = "
+                        f"{max_regulator_relevance[regulators[-1]]:.3f} "
+                        f"< threshold {threshold})",
+                        verbose,
+                    )
                     irrelevant.append(regulators[-1])
                     old_regulator_order.remove(regulators[-1])
                     regulators.remove(regulators[-1])
@@ -430,6 +482,12 @@ def get_rules(
                 n_irrelevant_new = len(irrelevant)
 
             if len(regulators) == 0 and gene not in irrelevant:
+                if len(irrelevant) > 0:
+                    _note(
+                        f"{gene}: all regulators removed; "
+                        f"refitting with {gene} as its own regulator",
+                        verbose,
+                    )
                 regulators = [
                     gene,
                 ]
