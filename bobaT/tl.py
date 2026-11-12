@@ -314,6 +314,7 @@ def get_rules(
     pseudocount_c=1.0,
     pseudocount_target="uniform",
     verbose=1,
+    n_jobs=None,
 ):
     """
     pseudocount_mode: controls how much WEIGHT the pseudo-observation gets for a given leaf.
@@ -343,6 +344,16 @@ def get_rules(
         removed for having too little effect (only possible when threshold > 0).
         2: the original debug output (gene counter, leaf counter every 100 leaves,
         and "...checking if X is irrelevant" for every regulator on every pass).
+        With n_jobs set, the per-leaf/per-regulator debug lines are printed by the
+        worker processes and may not show up in a notebook.
+    n_jobs: number of CPU cores to fit rules on. None or 1 (default, original
+        behavior) fits genes one at a time in this process. An integer > 1 fits that
+        many genes at once in separate processes (via joblib); -1 uses all cores.
+        Each gene's rule is fit independently, so the results are identical to the
+        serial fit, returned in the same node order. Rule plots (plot=True) are still
+        drawn in this process after each gene's fit comes back. Speed-up is largest
+        for networks where many genes have several parents; one gene with many
+        parents can still dominate the run time.
     """
     v_names = dict()
     for vertex_name in list(vertex_dict):
@@ -354,166 +365,83 @@ def get_rules(
     strengths = pd.DataFrame(index=nodes, columns=nodes)
     signed_strengths = pd.DataFrame(index=nodes, columns=nodes)
     total_nodes = len(nodes)
-    for xx, gene in enumerate(_gene_iter(nodes, verbose)):
-        if verbose >= 2:
-            print("Fitting ", xx, "/", total_nodes, "rules")
-            print(gene)
-        # for each node of the network
-        irrelevant = []
-        n_irrelevant_new = 0
-        regulators = [
-            v_names[v]
-            for v in vertex_dict[gene].in_neighbors()
-            if not v_names[v] in irrelevant
-        ]
-        # define a set of regulators as the in_neighbors of the node
-        while (
-            True
-        ):  # This breaks when all regulators have been deemed irrelevant, or none have
-            n_irrelevant_old = n_irrelevant_new
-            regulators_dict[gene] = regulators
-            n = len(regulators)
 
-            # we have to make sure we haven't stripped all the regulators as irrelevant
-            if n > 0:
-                # This becomes the eventual probabilistic rule. It has 2 rows
-                # that describe prob(ON) and prob(OFF). At the end these rows
-                # are normalized to sum to 1, such that the rule becomes
-                # prob(ON) / (prob(ON) + prob(OFF)
+    if pseudocount_mode not in ("max_heat", "aggregate"):
+        raise ValueError(
+            f"Unknown pseudocount_mode: {pseudocount_mode!r} "
+            "(expected 'max_heat' or 'aggregate')"
+        )
+    if pseudocount_target not in ("uniform", "marginal_rate"):
+        raise ValueError(
+            f"Unknown pseudocount_target: {pseudocount_target!r} "
+            "(expected 'uniform' or 'marginal_rate')"
+        )
 
-                prob_01 = np.zeros((2, 2**n))
+    # Resolve each gene's starting regulators by name here: graph_tool vertices
+    # can't be sent to worker processes.
+    initial_regulators = {
+        gene: [v_names[v] for v in vertex_dict[gene].in_neighbors()] for gene in nodes
+    }
+    fit_kwargs = dict(
+        data=data,
+        threshold=threshold,
+        pseudocount_mode=pseudocount_mode,
+        pseudocount_c=pseudocount_c,
+        pseudocount_target=pseudocount_target,
+        verbose=verbose,
+        return_heat=plot,
+    )
 
-                # This is the distribution of how much each sample reflects/constrains each leaf of the Binary Decision Diagram
-                heat = np.ones((data.shape[0], 2**n))
+    if n_jobs is None or n_jobs == 1:
+        def _results():
+            for xx, gene in enumerate(_gene_iter(nodes, verbose)):
+                if verbose >= 2:
+                    print("Fitting ", xx, "/", total_nodes, "rules")
+                    print(gene)
+                yield gene, _fit_gene_rule(gene, initial_regulators[gene], **fit_kwargs)
+        results = _results()
+    else:
+        from joblib import Parallel, delayed
 
-                for leaf in range(2**n):
-                    if verbose >= 2 and leaf % 100 == 0:
-                        print(leaf)
-                    binary = ut.idx2binary(leaf, len(regulators))
-                    binary = [{"0": False, "1": True}[i] for i in binary]
-                    # binary becomes a list of lists of T and Fs to represent each column
-                    for i, idx in enumerate(data.index):
-                        # for each row in data column...
-                        # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
-                        df = data.loc[idx]
-                        val = float(data.loc[idx, gene])
-                        for col, on in enumerate(binary):
-                            # for each regulator in each column in decision tree...
-                            regulator = regulators[col]
-                            # if that regulator is on in the decision tree, multiply the weight in the heatmap for that
-                            # row of data and column of tree with a weight that = probability that that node is on in the data
-                            # df(regulator) = expression value of regulator in data for that row
-                            # multiply for each regulator (parent TF) in leaf
-                            if on:
-                                heat[i, leaf] *= float(df[regulator])
-                            else:
-                                heat[i, leaf] *= 1 - float(df[regulator])
-                        # the probability for that leaf becomes the value of expression (val) times that square in the heatmap
-                        # this loops over the rows in the heatmap and keeps multiplying in the weight * expression value
-                        prob_01[0, leaf] += (
-                            val * heat[i, leaf]
-                        )  # Probabilitiy of being ON
-                        prob_01[1, leaf] += (1 - val) * heat[i, leaf]
+        if verbose >= 1:
+            _note(f"Fitting {total_nodes} rules in parallel (n_jobs={n_jobs})", verbose)
+        # Largest truth tables first, so a slow gene doesn't start last; results
+        # are put back into node order below.
+        order = sorted(
+            nodes, key=lambda g: len(initial_regulators[g]), reverse=True
+        )
+        fits = Parallel(n_jobs=n_jobs, return_as="generator_unordered")(
+            delayed(_fit_gene_rule_named)(gene, initial_regulators[gene], **fit_kwargs)
+            for gene in order
+        )
+        if verbose == 1:
+            fits = tqdm(fits, total=total_nodes, desc="Fitting rules", unit="gene")
+        done = {}
+        for gene, fit in fits:
+            for msg in fit["notes"]:
+                _note(msg, verbose)
+            fit["notes"] = []
+            done[gene] = fit
+        results = ((gene, done[gene]) for gene in nodes)
 
-                # We weigh each column by adding in a sample with prob=50% and
-                # a weight given by 1-max(weight). So leaves where no samples
-                # had high weight will end up with a high weight of 0.5. For
-                # instance, if the best sample has a weight 0.1 (crappy), the
-                # rule will have a sample added with weight 0.9, and 50% prob.
-                if pseudocount_mode == "max_heat":
-                    pseudo_weight = 1 - np.max(heat, axis=0)
-                elif pseudocount_mode == "aggregate":
-                    total_heat = np.sum(heat, axis=0)
-                    pseudo_weight = pseudocount_c / (pseudocount_c + total_heat)
-                else:
-                    raise ValueError(
-                        f"Unknown pseudocount_mode: {pseudocount_mode!r} "
-                        "(expected 'max_heat' or 'aggregate')"
-                    )
-
-                if pseudocount_target == "uniform":
-                    anchor = 0.5
-                elif pseudocount_target == "marginal_rate":
-                    anchor = float(data[gene].mean())
-                else:
-                    raise ValueError(
-                        f"Unknown pseudocount_target: {pseudocount_target!r} "
-                        "(expected 'uniform' or 'marginal_rate')"
-                    )
-
-                for i in range(prob_01.shape[1]):
-
-                    prob_01[0, i] += pseudo_weight[i] * anchor
-                    prob_01[1, i] += pseudo_weight[i] * (1 - anchor)
-
-                # The rule is normalized so that prob(ON)+prob(OFF)=1
-                rules[gene] = prob_01[0, :] / np.sum(prob_01, axis=0)
-                (
-                    max_regulator_relevance,
-                    tot_regulator_relevance,
-                    signed_tot_regulator_relevance,
-                ) = detect_irrelevant_regulator(
-                    regulators, rules[gene], threshold=threshold, heat=heat,
-                    verbose=verbose,
-                )
-
-                old_regulator_order = [i for i in regulators]
-                regulators = sorted(
-                    regulators, key=lambda x: max_regulator_relevance[x], reverse=True
-                )
-                if max_regulator_relevance[regulators[-1]] < threshold:
-                    _note(
-                        f"{gene}: removed regulator {regulators[-1]} "
-                        f"(max effect on P({gene} ON) = "
-                        f"{max_regulator_relevance[regulators[-1]]:.3f} "
-                        f"< threshold {threshold})",
-                        verbose,
-                    )
-                    irrelevant.append(regulators[-1])
-                    old_regulator_order.remove(regulators[-1])
-                    regulators.remove(regulators[-1])
-                regulators = sorted(
-                    regulators, key=lambda x: tot_regulator_relevance[x], reverse=True
-                )
-                regulators_dict[gene] = regulators
-                # regulators = old_regulator_order
-                # irrelevant += detect_irrelevant_regulator(regulators, rules[gene], threshold=threshold)
-
-                n_irrelevant_new = len(irrelevant)
-
-            if len(regulators) == 0 and gene not in irrelevant:
-                if len(irrelevant) > 0:
-                    _note(
-                        f"{gene}: all regulators removed; "
-                        f"refitting with {gene} as its own regulator",
-                        verbose,
-                    )
-                regulators = [
-                    gene,
-                ]
-                regulators_dict[gene] = [
-                    gene,
-                ]
-            elif n_irrelevant_old == n_irrelevant_new or len(regulators) == 0:
-                break
+    for gene, fit in results:
+        for msg in fit["notes"]:
+            _note(msg, verbose)
+        if fit["rule"] is not None:
+            rules[gene] = fit["rule"]
+        regulators_dict[gene] = fit["regulators"]
+        regulators = fit["regulators"]
 
         if len(regulators) > 0:
-            importance_order = reorder_binary_decision_tree(
-                old_regulator_order, regulators
-            )
-            heat = heat[:, importance_order]
-
-            rules[gene] = rules[gene][importance_order]
-            # rules[gene] = smooth_rule(rules[gene], regulators, tot_regulator_relevance, np.max(heat,axis=0))
-            strengths.loc[gene] = tot_regulator_relevance
-            signed_strengths.loc[gene] = signed_tot_regulator_relevance
+            strengths.loc[gene] = fit["tot_relevance"]
+            signed_strengths.loc[gene] = fit["signed_relevance"]
 
             if plot:
                 plot_rule(
                     gene,
                     rules[gene],
                     regulators,
-                    heat,
+                    fit["heat"],
                     data,
                     save_dir=save_dir,
                     save=save_plot,
@@ -522,6 +450,170 @@ def get_rules(
                 )
 
     return rules, regulators_dict, strengths, signed_strengths
+
+
+def _fit_gene_rule_named(gene, regulators, **kwargs):
+    """_fit_gene_rule, tagged with the gene name (for unordered parallel results)."""
+    return gene, _fit_gene_rule(gene, regulators, **kwargs)
+
+
+def _fit_gene_rule(
+    gene,
+    regulators,
+    data,
+    threshold,
+    pseudocount_mode,
+    pseudocount_c,
+    pseudocount_target,
+    verbose,
+    return_heat,
+):
+    """Fit one gene's rule (the per-gene body of get_rules).
+
+    `regulators` is the gene's starting parent list (names). Returns a dict with the
+    fitted rule (None if no fit happened), the final regulator list, the strengths and
+    signed strengths dicts, the heat matrix (if return_heat) and any pruning notes,
+    which the caller prints. Module-level so joblib can send it to worker processes.
+    """
+    notes = []
+    rule = None
+    heat = None
+    tot_regulator_relevance = signed_tot_regulator_relevance = None
+    irrelevant = []
+    n_irrelevant_new = 0
+    regulators = list(regulators)
+    # define a set of regulators as the in_neighbors of the node
+    while (
+        True
+    ):  # This breaks when all regulators have been deemed irrelevant, or none have
+        n_irrelevant_old = n_irrelevant_new
+        n = len(regulators)
+
+        # we have to make sure we haven't stripped all the regulators as irrelevant
+        if n > 0:
+            # This becomes the eventual probabilistic rule. It has 2 rows
+            # that describe prob(ON) and prob(OFF). At the end these rows
+            # are normalized to sum to 1, such that the rule becomes
+            # prob(ON) / (prob(ON) + prob(OFF)
+
+            prob_01 = np.zeros((2, 2**n))
+
+            # This is the distribution of how much each sample reflects/constrains each leaf of the Binary Decision Diagram
+            heat = np.ones((data.shape[0], 2**n))
+
+            for leaf in range(2**n):
+                if verbose >= 2 and leaf % 100 == 0:
+                    print(leaf)
+                binary = ut.idx2binary(leaf, len(regulators))
+                binary = [{"0": False, "1": True}[i] for i in binary]
+                # binary becomes a list of lists of T and Fs to represent each column
+                for i, idx in enumerate(data.index):
+                    # for each row in data column...
+                    # grab that row (df) and the expression value for the current node (left side of rule plot) (val)
+                    df = data.loc[idx]
+                    val = float(data.loc[idx, gene])
+                    for col, on in enumerate(binary):
+                        # for each regulator in each column in decision tree...
+                        regulator = regulators[col]
+                        # if that regulator is on in the decision tree, multiply the weight in the heatmap for that
+                        # row of data and column of tree with a weight that = probability that that node is on in the data
+                        # df(regulator) = expression value of regulator in data for that row
+                        # multiply for each regulator (parent TF) in leaf
+                        if on:
+                            heat[i, leaf] *= float(df[regulator])
+                        else:
+                            heat[i, leaf] *= 1 - float(df[regulator])
+                    # the probability for that leaf becomes the value of expression (val) times that square in the heatmap
+                    # this loops over the rows in the heatmap and keeps multiplying in the weight * expression value
+                    prob_01[0, leaf] += (
+                        val * heat[i, leaf]
+                    )  # Probabilitiy of being ON
+                    prob_01[1, leaf] += (1 - val) * heat[i, leaf]
+
+            # We weigh each column by adding in a sample with prob=50% and
+            # a weight given by 1-max(weight). So leaves where no samples
+            # had high weight will end up with a high weight of 0.5. For
+            # instance, if the best sample has a weight 0.1 (crappy), the
+            # rule will have a sample added with weight 0.9, and 50% prob.
+            if pseudocount_mode == "max_heat":
+                pseudo_weight = 1 - np.max(heat, axis=0)
+            elif pseudocount_mode == "aggregate":
+                total_heat = np.sum(heat, axis=0)
+                pseudo_weight = pseudocount_c / (pseudocount_c + total_heat)
+
+            if pseudocount_target == "uniform":
+                anchor = 0.5
+            elif pseudocount_target == "marginal_rate":
+                anchor = float(data[gene].mean())
+
+            for i in range(prob_01.shape[1]):
+
+                prob_01[0, i] += pseudo_weight[i] * anchor
+                prob_01[1, i] += pseudo_weight[i] * (1 - anchor)
+
+            # The rule is normalized so that prob(ON)+prob(OFF)=1
+            rule = prob_01[0, :] / np.sum(prob_01, axis=0)
+            (
+                max_regulator_relevance,
+                tot_regulator_relevance,
+                signed_tot_regulator_relevance,
+            ) = detect_irrelevant_regulator(
+                regulators, rule, threshold=threshold, heat=heat,
+                verbose=verbose,
+            )
+
+            old_regulator_order = [i for i in regulators]
+            regulators = sorted(
+                regulators, key=lambda x: max_regulator_relevance[x], reverse=True
+            )
+            if max_regulator_relevance[regulators[-1]] < threshold:
+                notes.append(
+                    f"{gene}: removed regulator {regulators[-1]} "
+                    f"(max effect on P({gene} ON) = "
+                    f"{max_regulator_relevance[regulators[-1]]:.3f} "
+                    f"< threshold {threshold})"
+                )
+                irrelevant.append(regulators[-1])
+                old_regulator_order.remove(regulators[-1])
+                regulators.remove(regulators[-1])
+            regulators = sorted(
+                regulators, key=lambda x: tot_regulator_relevance[x], reverse=True
+            )
+            # regulators = old_regulator_order
+            # irrelevant += detect_irrelevant_regulator(regulators, rules[gene], threshold=threshold)
+
+            n_irrelevant_new = len(irrelevant)
+
+        if len(regulators) == 0 and gene not in irrelevant:
+            if len(irrelevant) > 0:
+                notes.append(
+                    f"{gene}: all regulators removed; "
+                    f"refitting with {gene} as its own regulator"
+                )
+            regulators = [
+                gene,
+            ]
+        elif n_irrelevant_old == n_irrelevant_new or len(regulators) == 0:
+            break
+
+    if len(regulators) > 0:
+        importance_order = reorder_binary_decision_tree(
+            old_regulator_order, regulators
+        )
+        if return_heat:
+            heat = heat[:, importance_order]
+
+        rule = rule[importance_order]
+        # rule = smooth_rule(rule, regulators, tot_regulator_relevance, np.max(heat,axis=0))
+
+    return dict(
+        rule=rule,
+        regulators=regulators,
+        tot_relevance=tot_regulator_relevance,
+        signed_relevance=signed_tot_regulator_relevance,
+        heat=heat if return_heat else None,
+        notes=notes,
+    )
 
 
 def save_rules(rules, regulators_dict, fname="rules.txt", delimiter="|"):
